@@ -19,7 +19,8 @@ COPY poetry.lock pyproject.toml ./
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-arm64/
 
 RUN poetry export -f requirements.txt -o requirements.txt --without-hashes \
-    && pip install -r requirements.txt
+    && pip install -r requirements.txt \
+    && rm -f requirements.txt
 
 ADD https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.0.1-1.18/flink-sql-connector-kafka-3.0.1-1.18.jar /jars
 

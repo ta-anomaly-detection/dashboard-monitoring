@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - log-monitor-network
+    ports:
+      - "9090:9090"
+
+networks:
+  log-monitor-network:
+    external: true

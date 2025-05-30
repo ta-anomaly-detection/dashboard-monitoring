@@ -83,7 +83,14 @@ for file in $(docker exec clickhouse sh -c "ls $MIGRATION_DIR/*.sql"); do
 done
 echo "All migrations applied successfully."
 
-### 5. Start Grafana ###
+### 5. Start Prometheus ###
+echo "Starting Prometheus..."
+(cd prometheus && docker-compose up --build -d)
+echo "Waiting for Prometheus to be ready on port 9090..."
+wait_for_port "localhost" "9090"
+echo "Prometheus is ready!"
+
+### 6. Start Grafana ###
 echo "Starting Grafana..."
 (cd grafana && docker-compose up --build -d)
 
