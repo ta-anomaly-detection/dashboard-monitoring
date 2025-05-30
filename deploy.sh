@@ -59,7 +59,7 @@ else
 fi
 
 ### 4. Start ClickHouse ###
-echo "Starting ClickHouse + Grafana..."
+echo "Starting ClickHouse..."
 (cd clickhouse && docker-compose up --build -d)
 
 echo "Waiting for ClickHouse to be ready..."
