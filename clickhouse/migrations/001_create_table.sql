@@ -1,4 +1,4 @@
-CREATE TABLE logs_combined (
+CREATE TABLE web_server_logs (
     ts DateTime,
     remote_ip String,
     latency_us Float32,

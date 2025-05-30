@@ -14,14 +14,14 @@ wait_for_port() {
 
 ### 1. Start Web Server ###
 echo "Starting Web Server..."
-(cd web-server && docker-compose up -d)
+(cd web-server && docker-compose up --build -d)
 
 echo "Waiting for Web Server on port 3000..."
 wait_for_port "localhost" "3000"
 
 ### 2. Start Kafka ###
 echo "Starting Kafka..."
-(cd kafka && docker-compose up -d)
+(cd kafka && docker-compose up --build -d)
 
 echo "Waiting for Kafka to be ready on port 9092..."
 wait_for_port "localhost" "9092"
@@ -37,30 +37,30 @@ echo "Kafka cluster is ready."
 
 ### 3. Start Flink ###
 echo "Starting Flink Consumer..."
-(cd flink && docker-compose up -d)
+(cd flink && docker-compose up --build -d)
 
 echo "Waiting for Flink JobManager on port 8081..."
 wait_for_port "localhost" "8081"
 
 echo "Submitting Flink job in background mode..."
-# docker exec -d flink-app-1 /flink/bin/flink run -py /taskscripts/app.py --jobmanager jobmanager:8081 --target local
-docker exec flink-app-1 /flink/bin/flink run -py /taskscripts/app.py --jobmanager jobmanager:8081 --target local
+docker exec -d flink-app-1 /flink/bin/flink run -py /taskscripts/app.py --jobmanager jobmanager:8081 --target local
+# docker exec flink-app-1 /flink/bin/flink run -py /taskscripts/app.py --jobmanager jobmanager:8081 --target local
 
-# echo "Waiting for Flink job to be submitted..."
-# sleep 5
+echo "Waiting for Flink job to be submitted..."
+sleep 5
 
-# # Check if the job is running
-# JOB_STATUS=$(docker exec flink-app-1 curl -s http://jobmanager:8081/jobs/overview | grep -o '"state":"[A-Z]*"' | head -1 || echo "No jobs found")
-# if [[ $JOB_STATUS == *"RUNNING"* ]]; then
-#   echo "✅ Flink job successfully submitted and running in background."
-# else
-#   echo "⚠️  Flink job submission completed, but job status could not be verified."
-#   echo "Please check the Flink dashboard at http://localhost:8081 for job status."
-# fi
+# Check if the job is running
+JOB_STATUS=$(docker exec flink-app-1 curl -s http://jobmanager:8081/jobs/overview | grep -o '"state":"[A-Z]*"' | head -1 || echo "No jobs found")
+if [[ $JOB_STATUS == *"RUNNING"* ]]; then
+  echo "✅ Flink job successfully submitted and running in background."
+else
+  echo "⚠️  Flink job submission completed, but job status could not be verified."
+  echo "Please check the Flink dashboard at http://localhost:8081 for job status."
+fi
 
 ### 4. Start ClickHouse ###
 echo "Starting ClickHouse + Grafana..."
-(cd clickhouse && docker-compose up -d)
+(cd clickhouse && docker-compose up --build -d)
 
 echo "Waiting for ClickHouse to be ready..."
 until docker exec clickhouse clickhouse-client --query "SELECT 1" >/dev/null 2>&1; do
@@ -85,7 +85,7 @@ echo "All migrations applied successfully."
 
 ### 5. Start Grafana ###
 echo "Starting Grafana..."
-(cd grafana && docker-compose up -d)
+(cd grafana && docker-compose up --build -d)
 
 echo "Waiting for Grafana to be ready on port 3001..."
 wait_for_port "localhost" "3001"

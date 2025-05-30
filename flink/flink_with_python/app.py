@@ -183,31 +183,34 @@ def parse_latency(latency_str):
 class CombineProcessedWithRaw(MapFunction):
     def map(self, row):
         try:
-            # Extract processed features
-            response_size = row[0]
-            encoded_method = row[1]
-            encoded_protocol = row[2] 
-            encoded_status = row[3]
-            encoded_device = row[4]
-            encoded_country = row[5]
-            parsed_latency = row[6]
-            
-            # Create a combined record for anomaly detection and storage
-            combined_record = {
-                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'size': response_size,
-                'method': encoded_method,
-                'status': encoded_status,
-                'device': encoded_device,
-                'country': encoded_country,
-                'latency': parsed_latency,
-                'protocol': encoded_protocol,
-                'raw_request_parts': str(row[7]),
-                'raw_url_parts': str(row[8]),
-                'raw_query_params': str(row[9])
+            # Map processed and raw fields to match web_server_logs schema
+            # row indices: see processed_table select below
+            return {
+                'ts': row[10],  # parsed timestamp (from original row)
+                'remote_ip': row[11],
+                'latency_us': row[6],  # parsed_latency
+                'host': row[12],
+                'http_method': row[13],
+                'encoded_http_method': row[1],
+                'request_uri': row[14],
+                'url_path': row[8][0] if row[8] else "",
+                'url_query': row[8][1] if row[8] else "",
+                'query_param_keys': row[9] if row[9] else [],
+                'http_version': row[15],
+                'encoded_http_version': row[2],
+                'response_status': row[16],
+                'encoded_status': row[3],
+                'response_size': row[0],
+                'user_agent': row[17],
+                'device_family': row[18],
+                'encoded_device': row[4],
+                'country': row[19],
+                'encoded_country': row[5],
+                'referrer': row[20],
+                'request_id': row[21],
+                'msg': row[22],
+                'level': row[23]
             }
-            
-            return combined_record
         except Exception as e:
             logging.error(f"Failed to combine data: {e}")
             return None
@@ -236,58 +239,43 @@ class ClickHouseSink(SinkFunction):
         try:
             if value is None:
                 return
-                
-            # Send prediction request to the web API
-            try:
-                response = requests.post(
-                    "http://web:8000/api/prediction/predict",
-                    json={
-                        "size": value['size'],
-                        "country": value['country'],
-                        "method": value['method'],
-                        "device": value['device'],
-                        "status": value['status']
-                    },
-                    timeout=5
-                )
-                
-                # Add prediction result to the record
-                if response.status_code == 200:
-                    prediction = response.json()
-                    value['anomaly_score'] = prediction.get('score', 0)
-                    value['is_anomaly'] = prediction.get('is_anomaly', False)
-                else:
-                    value['anomaly_score'] = 0
-                    value['is_anomaly'] = False
-                    
-            except Exception as e:
-                logging.error(f"API call failed: {str(e)}")
-                value['anomaly_score'] = 0
-                value['is_anomaly'] = False
-                
-            # Insert data into ClickHouse
+
+            # Optionally, call prediction API here if needed
+            # ...existing code for API call, can be omitted if not needed...
+
+            # Insert data into ClickHouse with web_server_logs schema
             self.client.execute(
                 f"INSERT INTO {self.table} VALUES",
                 [{
-                    'timestamp': value['timestamp'],
-                    'size': value['size'],
-                    'method': value['method'],
-                    'status': value['status'],
-                    'device': value['device'],
+                    'ts': value['ts'],
+                    'remote_ip': value['remote_ip'],
+                    'latency_us': value['latency_us'],
+                    'host': value['host'],
+                    'http_method': value['http_method'],
+                    'encoded_http_method': value['encoded_http_method'],
+                    'request_uri': value['request_uri'],
+                    'url_path': value['url_path'],
+                    'url_query': value['url_query'],
+                    'query_param_keys': value['query_param_keys'],
+                    'http_version': value['http_version'],
+                    'encoded_http_version': value['encoded_http_version'],
+                    'response_status': value['response_status'],
+                    'encoded_status': value['encoded_status'],
+                    'response_size': value['response_size'],
+                    'user_agent': value['user_agent'],
+                    'device_family': value['device_family'],
+                    'encoded_device': value['encoded_device'],
                     'country': value['country'],
-                    'latency': value['latency'],
-                    'protocol': value['protocol'],
-                    'request_parts': value['raw_request_parts'],
-                    'url_parts': value['raw_url_parts'],
-                    'query_params': value['raw_query_params'],
-                    'anomaly_score': value['anomaly_score'],
-                    'is_anomaly': bool(value['is_anomaly'])
+                    'encoded_country': value['encoded_country'],
+                    'referrer': value['referrer'],
+                    'request_id': value['request_id'],
+                    'msg': value['msg'],
+                    'level': value['level']
                 }]
             )
-            
         except Exception as e:
             logging.error(f"ClickHouse insert failed: {str(e)}")
-            
+
     def close(self):
         if self.client:
             logging.info("Closing ClickHouse connection")
@@ -300,10 +288,10 @@ def kafka_sink_example():
     kafka_broker = os.environ["KAFKA_BROKER"]
     kafka_topic = os.environ["KAFKA_TOPIC"]
 
-    clickhouse_host = os.environ.get("CLICKHOUSE_HOST", "clickhouse-service")
+    clickhouse_host = os.environ.get("CLICKHOUSE_HOST", "clickhouse")
     clickhouse_port = int(os.environ.get("CLICKHOUSE_PORT", "9000"))
     clickhouse_db = os.environ.get("CLICKHOUSE_DB", "default") 
-    clickhouse_table = os.environ.get("CLICKHOUSE_TABLE", "log_anomalies")
+    clickhouse_table = os.environ.get("CLICKHOUSE_TABLE", "web_server_logs")
 
     print(f"Connecting to Kafka broker: {kafka_broker}, topic: {kafka_topic}")
     print(f"ClickHouse target: {clickhouse_host}:{clickhouse_port}/{clickhouse_db}.{clickhouse_table}")
@@ -345,34 +333,54 @@ def kafka_sink_example():
         col("response_size"),
         encode_method(col("http_method")).alias("encoded_http_method"),
         encode_protocol(col("http_version")).alias("encoded_http_version"),
-        encode_status(col("response_status")).alias("encoded_response_status"),
+        encode_status(col("response_status")).alias("encoded_status"),
         map_device(extract_device(col("user_agent"))).alias("encoded_device"),
         encode_country(col("remote_ip")).alias("encoded_country"),
-        parse_latency(col("latency")).alias("parsed_latency"),
+        parse_latency(col("latency")).alias("latency_us"),
         split_request(col("request_uri")).alias("request_parts"),
         split_url(col("request_uri")).alias("url_parts"),
-        extract_query_array(col("request_body")).alias("query_params"),
+        extract_query_array(col("request_body")).alias("query_param_keys"),
+        col("ts"),
+        col("remote_ip"),
+        col("host"),
+        col("http_method"),
+        col("request_uri"),
+        col("http_version"),
+        col("response_status"),
+        col("user_agent"),
+        extract_device(col("user_agent")).alias("device_family"),
+        col("remote_ip").alias("country"),  # Replace with actual country extraction if available
+        col("referrer"),
+        col("request_id"),
+        col("msg"),
+        col("level")
     )
     
     print("Processed table created successfully") 
 
     result_stream = t_env.to_data_stream(processed_table)
-    
+
     combined_stream = result_stream.map(
         CombineProcessedWithRaw(),
-        output_type=Types.MAP(Types.STRING(), Types.PRIMITIVE())
+        output_type=Types.MAP(Types.STRING(), Types.PICKLED_BYTE_ARRAY())
     )
-    
-    combined_stream.add_sink(
-        ClickHouseSink(
+
+    # Instead of .add_sink(ClickHouseSink(...)), use .map() for side-effect
+    def clickhouse_side_effect(value):
+        sink = ClickHouseSink(
             host=clickhouse_host,
             port=clickhouse_port,
             database=clickhouse_db,
             table=clickhouse_table
         )
-    )
-    
-    # Keep the print for debugging
+        # open() expects a config, but we can pass None for this context
+        sink.open(None)
+        sink.invoke(value, None)
+        sink.close()
+        return value  # pass through for print/debug
+
+    combined_stream = combined_stream.map(clickhouse_side_effect)
+
     combined_stream.print("Combined Data for ClickHouse")
     
     env.execute("Kafka to ClickHouse Job")
