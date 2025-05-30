@@ -1,0 +1,25 @@
+app:
+  name: web-server
+env: production
+web:
+  prefork: false
+  port: 3000
+log:
+  filePath: /var/app/logs/web-server.log
+  maxSize: 10 # MB
+  maxBackups: 5
+  maxAge: 30 # days
+  compress: true
+  level: debug
+database:
+  username:
+  password:
+  host:
+  port:
+  name:
+  sslMode:
+  timezone:
+  pool:
+    idle: 10
+    max: 100
+    lifetime: 300

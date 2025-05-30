@@ -1,0 +1,46 @@
+version: '3.7'
+services:
+
+  jobmanager:
+    image: flink:1.18
+    networks:
+      - log-monitor-network
+    ports:
+      - 8081:8081
+    environment:
+      FLINK_PROPERTIES: "jobmanager.rpc.address: jobmanager"
+    command: jobmanager
+
+  taskmanager:
+    image: flink:1.18
+    networks:
+      - log-monitor-network
+    environment:
+      FLINK_PROPERTIES: "jobmanager.rpc.address: jobmanager"
+    command: taskmanager
+
+  app:
+    image: flink-app
+    build:
+      context: .
+    environment:
+      KAFKA_BROKER: kafka-server:9092
+      KAFKA_TOPIC: web-server-logs
+      SINK_DIR: /sink
+    depends_on:
+      - jobmanager
+      - taskmanager
+    volumes:
+      - ./sink:/sink
+      # - ./flink_with_python/app.py:/taskscripts/app.py
+    entrypoint:
+      - tail
+    command: 
+      - -f
+      - /dev/null
+    networks:
+      - log-monitor-network
+
+networks:
+  log-monitor-network:
+    external: true

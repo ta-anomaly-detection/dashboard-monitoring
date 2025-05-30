@@ -1,0 +1,27 @@
+CREATE TABLE logs_combined (
+    ts DateTime,
+    remote_ip String,
+    latency_us Float32,
+    host String,
+    http_method String,
+    encoded_http_method UInt8,
+    request_uri String,
+    url_path String,
+    url_query String,
+    query_param_keys Array(String),
+    http_version String,
+    encoded_http_version UInt8,
+    response_status UInt16,
+    encoded_status UInt8,
+    response_size UInt32,
+    user_agent String,
+    device_family String,
+    encoded_device UInt8,
+    country String,
+    encoded_country UInt8,
+    referrer String,
+    request_id String,
+    msg String,
+    level String
+) ENGINE = MergeTree()
+ORDER BY (ts);

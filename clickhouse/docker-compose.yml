@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    networks: 
+      - log-monitor-network
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./config/clickhouse-keeper:/etc/clickhouse-keeper
+      - ./config/clickhouse-server/config.xml:/etc/clickhouse-server/config.xml
+      - ./config/clickhouse-server/users.xml:/etc/clickhouse-server/users.xml
+      - ./migrations:/migrations
+    entrypoint: ["./entrypoint.sh"]
+
+volumes:
+  clickhouse_data:
+
+networks:
+  log-monitor-network:
+    external: true

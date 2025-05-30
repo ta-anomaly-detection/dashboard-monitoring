@@ -1,0 +1,25 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/app/logs/*.log
+
+output.kafka:
+  enabled: true
+  hosts: ["${KAFKA_BROKERS}"]
+  topic: ${KAFKA_TOPIC}
+  partition.round_robin:
+    reachable_only: true
+  required_acks: 1
+  compression: gzip
+  max_message_bytes: 1000000
+
+# logging for debug
+logging:
+  level: info
+  to_files: true
+  files:
+    path: /var/log/filebeat
+    name: filebeat
+    keepfiles: 7
+    permissions: 0644
