@@ -8,7 +8,6 @@ CREATE TABLE web_server_logs (
     request_uri String,
     url_path String,
     url_query String,
-    query_param_keys Array(String),
     http_version String,
     encoded_http_version UInt8,
     response_status UInt16,

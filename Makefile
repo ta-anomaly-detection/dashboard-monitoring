@@ -6,36 +6,36 @@ up-all:
 
 up-web-server:
 	@echo "Starting web server..."
-	docker compose -f web-server/docker-compose.yml up -d
+	docker compose -f web-server/docker-compose.yml up --build -d
 
 up-kafka:
 	@echo "Starting Kafka..."
-	docker compose -f kafka/docker-compose.yml up -d
+	docker compose -f kafka/docker-compose.yml up --build -d
 
 up-flink:
 	@echo "Starting Flink..."
-	docker compose -f flink/docker-compose.yml up -d
+	docker compose -f flink/docker-compose.yml up --build -d
 
 up-clickhouse:
 	@echo "Starting ClickHouse..."
-	docker compose -f clickhouse/docker-compose.yml up -d
+	docker compose -f clickhouse/docker-compose.yml up --build -d
 
 up-prometheus:
 	@echo "Starting Prometheus..."
-	docker compose -f prometheus/docker-compose.yml up -d
+	docker compose -f prometheus/docker-compose.yml up --build -d
 
 up-grafana:
 	@echo "Starting Grafana..."
-	docker compose -f grafana/docker-compose.yml up -d
+	docker compose -f grafana/docker-compose.yml up --build -d
 
 down-web-server:
 	docker compose -f web-server/docker-compose.yml down -v
 
 down-kafka:
-	docker compose -f kafka-server/docker-compose.yml down -v
+	docker compose -f kafka/docker-compose.yml down -v
 
 down-flink:
-	docker compose -f flink-consumer/docker-compose.yml down -v
+	docker compose -f flink/docker-compose.yml down -v
 
 down-clickhouse:
 	docker compose -f clickhouse/docker-compose.yml down -v

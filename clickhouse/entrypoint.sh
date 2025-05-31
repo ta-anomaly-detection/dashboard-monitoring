@@ -7,7 +7,7 @@ clickhouse-server --config-file=/etc/clickhouse-server/config.xml &
 sleep 10
 
 # Execute the SQL migration file
-clickhouse-client --query="$(cat /migrations/001_create_tables.sql)"
+clickhouse-client --query="$(cat /migrations/001_create_table.sql)"
 
 # Keep the container running
 tail -f /dev/null

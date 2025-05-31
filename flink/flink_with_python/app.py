@@ -1,29 +1,41 @@
-import os
 import requests
-
-from pyflink.common import WatermarkStrategy, Encoder, Row, TypeInformation
-from pyflink.common.serialization import SimpleStringSchema
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FileSink, RollingPolicy, OutputFileConfig
-from pyflink.table import StreamTableEnvironment
-from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaSource
-from pyflink.common.configuration import Configuration
-
-from pyflink.common.typeinfo import Types, BasicTypeInfo
-
-from pyflink.table import EnvironmentSettings, TableEnvironment
-from pyflink.table.expressions import col
-from pyflink.table.udf import udf
-import re
-
 import json
 import logging
-from pyflink.datastream.functions import MapFunction, FlatMapFunction, SinkFunction
+
 from pyflink.common import WatermarkStrategy, Row
-import requests
-import clickhouse_driver
-from clickhouse_driver import Client
-from datetime import datetime
+from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common.typeinfo import Types
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaSource
+from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, JdbcExecutionOptions
+from pyflink.datastream.functions import MapFunction
+from pyflink.table import StreamTableEnvironment
+from pyflink.table.expressions import col
+
+
+from config import (
+    KAFKA_BROKER, 
+    KAFKA_TOPIC, 
+    CLICKHOUSE_HOST, 
+    CLICKHOUSE_PORT, 
+    CLICKHOUSE_DB, 
+    CLICKHOUSE_TABLE, 
+    CLICKHOUSE_USER, 
+    CLICKHOUSE_PASSWORD,
+    print_configuration
+)
+from udfs import (
+    register_udfs,
+    encode_method,
+    encode_protocol,
+    encode_status,
+    extract_device,
+    map_device,
+    parse_latency,
+    split_request,
+    split_url,
+    encode_country
+)
 
 def call_api(row):
     try:
@@ -78,229 +90,99 @@ class ParseJson(MapFunction):
 
         
 row_type = Types.ROW_NAMED(
-    ["level", "ts", "caller", "msg", "remote_ip", "latency", "host", "http_method", "request_uri", "http_version",
+    field_names=["level", "ts", "caller", "msg", "remote_ip", "latency", "host", "http_method", "request_uri", "http_version",
      "response_status", "response_size", "referrer", "request_body", "request_time", "user_agent", "request_id"],
-    [Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(),
+    field_types=[Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(),
      Types.STRING(), Types.STRING(), Types.STRING(), Types.INT(), Types.INT(), Types.STRING(), Types.STRING(),
      Types.STRING(), Types.STRING(), Types.STRING()]
 )
 
-# UDFs
-@udf(result_type='ARRAY<STRING>')
-def split_request(request: str):
-    if not request:
-        return ["", "", ""]
-    parts = request.split(" ", 2)
-    while len(parts) < 3:
-        parts.append("")
-    return parts
-
-@udf(result_type='ARRAY<STRING>')
-def split_url(url: str):
-    if not url:
-        return ["", "-"]
-    parts = url.split("?", 1)
-    return [parts[0], parts[1]] if len(parts) > 1 else [parts[0], "-"]
-
-@udf(result_type='INT')
-def encode_method(method: str):
-    mapping = {
-        'GET': 1, 'HEAD': 2, 'POST': 3, 'OPTIONS': 4,
-        'CONNECT': 5, 'PROPFIND': 6, 'CONECT': 7, 'TRACE': 8,
-    }
-    method = 'OPTIONS' if method == 'OPTION' else method
-    return mapping.get(method, None)
-
-@udf(result_type='INT')
-def encode_protocol(protocol: str):
-    return {'HTTP/1.0': 1, 'HTTP/1.1': 2, 'hink': 3}.get(protocol, None)
-
-@udf(result_type='INT')
-def encode_status(status: int):
-    if not status:
-        return None
-    status = str(status)
-    if status.startswith('2'):
-        return 1
-    elif status.startswith('3'):
-        return 2
-    elif status.startswith('4'):
-        return 3
-    elif status.startswith('5'):
-        return 4
-    else:
-        return 5
-    
-@udf(result_type='INT')
-def encode_country(country: str):
-    return 1 if country == 'Indonesia' else 0
-
-@udf(result_type='ARRAY<STRING>')
-def extract_query_array(query: str):
-    if not query or query == '-':
-        return []
-    return [pair.split('=')[0] for pair in query.split('&')]
-
-@udf(result_type='STRING')
-def extract_device(ua: str):
-    if not ua:
-        return 'Unknown'
-    for pattern in ['Windows', 'Linux', 'Android', 'iPad', 'iPod', 'iPhone', 'Macintosh']:
-        if re.search(pattern, ua, re.I):
-            return pattern
-    return 'Unknown'
-
-@udf(result_type='INT')
-def map_device(device: str):
-    return {
-        'Windows': 1, 'Linux': 1, 'Macintosh': 1,
-        'Android': 2, 'iPad': 2, 'iPod': 2, 'iPhone': 2,
-        'Unknown': 3
-    }.get(device, 3)
-
-@udf(result_type='FLOAT')
-def parse_latency(latency_str):
-    """Convert latency string to microseconds (as float)."""
-    if not latency_str:
-        return 0.0
-        
-    numeric_part = re.match(r'([0-9\.\-]+)', latency_str)
-    if not numeric_part:
-        return 0.0
-        
-    value = float(numeric_part.group(1))
-    
-    if 'µs' in latency_str:
-        return value
-    elif 'ms' in latency_str:
-        return value * 1000
-    elif 's' in latency_str:
-        return value * 1000000
-    else:
-        return value
-
-
 class CombineProcessedWithRaw(MapFunction):
     def map(self, row):
         try:
-            # Map processed and raw fields to match web_server_logs schema
-            # row indices: see processed_table select below
             return {
-                'ts': row[10],  # parsed timestamp (from original row)
-                'remote_ip': row[11],
-                'latency_us': row[6],  # parsed_latency
-                'host': row[12],
-                'http_method': row[13],
-                'encoded_http_method': row[1],
-                'request_uri': row[14],
+                'ts': row[10] or "",  
+                'remote_ip': row[11] or "",
+                'latency_us': row[6] or 0.0, 
+                'host': row[12] or "",
+                'http_method': row[13] or "",
+                'encoded_http_method': row[1] or 0,
+                'request_uri': row[14] or "",
                 'url_path': row[8][0] if row[8] else "",
                 'url_query': row[8][1] if row[8] else "",
-                'query_param_keys': row[9] if row[9] else [],
-                'http_version': row[15],
-                'encoded_http_version': row[2],
-                'response_status': row[16],
-                'encoded_status': row[3],
-                'response_size': row[0],
-                'user_agent': row[17],
-                'device_family': row[18],
-                'encoded_device': row[4],
-                'country': row[19],
-                'encoded_country': row[5],
-                'referrer': row[20],
-                'request_id': row[21],
-                'msg': row[22],
-                'level': row[23]
+                'http_version': row[15] or "",
+                'encoded_http_version': row[2] or 0,
+                'response_status': row[16] or 0,
+                'encoded_status': row[3] or 0,
+                'response_size': row[0] or 0,
+                'user_agent': row[17] or "",
+                'device_family': row[18] or "",
+                'encoded_device': row[4] or 0,
+                'country': row[19] or "",
+                'encoded_country': row[5] or 0,
+                'referrer': row[20] or "",
+                'request_id': row[21] or "",
+                'msg': row[22] or "",
+                'level': row[23] or ""
             }
         except Exception as e:
             logging.error(f"Failed to combine data: {e}")
-            return None
-
-class ClickHouseSink(SinkFunction):
-    def __init__(self, host, port, database, table):
-        self.host = host
-        self.port = port
-        self.database = database
-        self.table = table
-        self.client = None
+            return {
+                'ts': "", 'remote_ip': "", 'latency_us': 0.0, 'host': "", 
+                'http_method': "", 'encoded_http_method': 0, 'request_uri': "", 
+                'url_path': "", 'url_query': "", 'http_version': "", 
+                'encoded_http_version': 0, 'response_status': 0, 'encoded_status': 0, 
+                'response_size': 0, 'user_agent': "", 'device_family': "", 
+                'encoded_device': 0, 'country': "", 'encoded_country': 0,
+                'referrer': "", 'request_id': "", 'msg': "", 'level': ""
+            }
         
-    def open(self, config):
-        try:
-            self.client = Client(
-                host=self.host,
-                port=self.port,
-                database=self.database
-            )
-            logging.info(f"Connected to ClickHouse at {self.host}:{self.port}/{self.database}")
-        except Exception as e:
-            logging.error(f"ClickHouse connection failed: {str(e)}")
-            raise
-        
-    def invoke(self, value, context):
-        try:
-            if value is None:
-                return
-
-            # Optionally, call prediction API here if needed
-            # ...existing code for API call, can be omitted if not needed...
-
-            # Insert data into ClickHouse with web_server_logs schema
-            self.client.execute(
-                f"INSERT INTO {self.table} VALUES",
-                [{
-                    'ts': value['ts'],
-                    'remote_ip': value['remote_ip'],
-                    'latency_us': value['latency_us'],
-                    'host': value['host'],
-                    'http_method': value['http_method'],
-                    'encoded_http_method': value['encoded_http_method'],
-                    'request_uri': value['request_uri'],
-                    'url_path': value['url_path'],
-                    'url_query': value['url_query'],
-                    'query_param_keys': value['query_param_keys'],
-                    'http_version': value['http_version'],
-                    'encoded_http_version': value['encoded_http_version'],
-                    'response_status': value['response_status'],
-                    'encoded_status': value['encoded_status'],
-                    'response_size': value['response_size'],
-                    'user_agent': value['user_agent'],
-                    'device_family': value['device_family'],
-                    'encoded_device': value['encoded_device'],
-                    'country': value['country'],
-                    'encoded_country': value['encoded_country'],
-                    'referrer': value['referrer'],
-                    'request_id': value['request_id'],
-                    'msg': value['msg'],
-                    'level': value['level']
-                }]
-            )
-        except Exception as e:
-            logging.error(f"ClickHouse insert failed: {str(e)}")
-
-    def close(self):
-        if self.client:
-            logging.info("Closing ClickHouse connection")
+def extract_values(record):
+        if record is None:
+            return []
+            
+        return [
+            record.get('ts', ''),
+            record.get('remote_ip', ''),
+            record.get('latency_us', 0.0),
+            record.get('host', ''),
+            record.get('http_method', ''),
+            record.get('encoded_http_method', 0),
+            record.get('request_uri', ''),
+            record.get('url_path', ''),
+            record.get('url_query', ''),
+            record.get('http_version', ''),
+            record.get('encoded_http_version', 0),
+            record.get('response_status', 0),
+            record.get('encoded_status', 0),
+            record.get('response_size', 0),
+            record.get('user_agent', ''),
+            record.get('device_family', ''),
+            record.get('encoded_device', 0),
+            record.get('country', ''),
+            record.get('encoded_country', 0),
+            record.get('referrer', ''),
+            record.get('request_id', ''),
+            record.get('msg', ''),
+            record.get('level', '')
+        ]
 
 def kafka_sink_example():
     env = StreamExecutionEnvironment.get_execution_environment()
 
     env.add_jars("file:///jars/flink-sql-connector-kafka-3.0.1-1.18.jar")
-
-    kafka_broker = os.environ["KAFKA_BROKER"]
-    kafka_topic = os.environ["KAFKA_TOPIC"]
-
-    clickhouse_host = os.environ.get("CLICKHOUSE_HOST", "clickhouse")
-    clickhouse_port = int(os.environ.get("CLICKHOUSE_PORT", "9000"))
-    clickhouse_db = os.environ.get("CLICKHOUSE_DB", "default") 
-    clickhouse_table = os.environ.get("CLICKHOUSE_TABLE", "web_server_logs")
-
-    print(f"Connecting to Kafka broker: {kafka_broker}, topic: {kafka_topic}")
-    print(f"ClickHouse target: {clickhouse_host}:{clickhouse_port}/{clickhouse_db}.{clickhouse_table}")
+    env.add_jars("file:///jars/flink-connector-jdbc-3.1.2-1.17.jar")
+    env.add_jars("file:///jars/clickhouse-jdbc-0.4.6-all.jar") 
+    
+    print_configuration()
 
     t_env = StreamTableEnvironment.create(env)
 
+    register_udfs(t_env)
+
     kafka_source = KafkaSource.builder() \
-        .set_bootstrap_servers(kafka_broker) \
-        .set_topics(kafka_topic) \
+        .set_bootstrap_servers(KAFKA_BROKER) \
+        .set_topics(KAFKA_TOPIC) \
         .set_group_id("flink_group") \
         .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
         .set_value_only_deserializer(SimpleStringSchema()) \
@@ -321,14 +203,6 @@ def kafka_sink_example():
         "user_agent", "request_id"
     )
     
-    t_env.create_temporary_system_function("encode_method", encode_method)
-    t_env.create_temporary_system_function("encode_protocol", encode_protocol)
-    t_env.create_temporary_system_function("encode_status", encode_status)
-    t_env.create_temporary_system_function("extract_device", extract_device)
-    t_env.create_temporary_system_function("map_device", map_device)
-    t_env.create_temporary_system_function("encode_country", encode_country)
-    t_env.create_temporary_system_function("parse_latency", parse_latency)
-    
     processed_table = table.select(
         col("response_size"),
         encode_method(col("http_method")).alias("encoded_http_method"),
@@ -339,7 +213,6 @@ def kafka_sink_example():
         parse_latency(col("latency")).alias("latency_us"),
         split_request(col("request_uri")).alias("request_parts"),
         split_url(col("request_uri")).alias("url_parts"),
-        extract_query_array(col("request_body")).alias("query_param_keys"),
         col("ts"),
         col("remote_ip"),
         col("host"),
@@ -365,25 +238,61 @@ def kafka_sink_example():
         output_type=Types.MAP(Types.STRING(), Types.PICKLED_BYTE_ARRAY())
     )
 
-    # Instead of .add_sink(ClickHouseSink(...)), use .map() for side-effect
-    def clickhouse_side_effect(value):
-        sink = ClickHouseSink(
-            host=clickhouse_host,
-            port=clickhouse_port,
-            database=clickhouse_db,
-            table=clickhouse_table
-        )
-        # open() expects a config, but we can pass None for this context
-        sink.open(None)
-        sink.invoke(value, None)
-        sink.close()
-        return value  # pass through for print/debug
-
-    combined_stream = combined_stream.map(clickhouse_side_effect)
-
-    combined_stream.print("Combined Data for ClickHouse")
+    # Define the SQL for inserting into ClickHouse
+    sql = f"""
+    INSERT INTO {CLICKHOUSE_DB}.{CLICKHOUSE_TABLE} (
+        ts, remote_ip, latency_us, host, http_method, encoded_http_method,
+        request_uri, url_path, url_query, http_version, 
+        encoded_http_version, response_status, encoded_status, response_size,
+        user_agent, device_family, encoded_device, country, encoded_country,
+        referrer, request_id, msg, level
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
     
-    env.execute("Kafka to ClickHouse Job")
+    clickhouse_row_type = Types.ROW_NAMED(
+        field_names=[
+            "ts", "remote_ip", "latency_us", "host", "http_method", 
+            "encoded_http_method", "request_uri", "url_path", "url_query", 
+            "http_version", "encoded_http_version", "response_status", 
+            "encoded_status", "response_size", "user_agent", 
+            "device_family", "encoded_device", "country", 
+            "encoded_country", "referrer", "request_id", "msg", "level"
+        ],
+        field_types=[
+            Types.STRING(), Types.STRING(), Types.FLOAT(), Types.STRING(), Types.STRING(),
+            Types.INT(), Types.STRING(), Types.STRING(), Types.STRING(), 
+            Types.STRING(), Types.INT(), Types.INT(),
+            Types.INT(), Types.INT(), Types.STRING(),
+            Types.STRING(), Types.INT(), Types.STRING(),
+            Types.INT(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()
+        ]
+    )
+
+    connection_options = JdbcConnectionOptions.JdbcConnectionOptionsBuilder()\
+        .with_url(f"jdbc:clickhouse://{CLICKHOUSE_HOST}:{CLICKHOUSE_PORT}/{CLICKHOUSE_DB}")\
+        .with_driver_name("com.clickhouse.jdbc.ClickHouseDriver")\
+        .with_user_name(CLICKHOUSE_USER)\
+        .with_password(CLICKHOUSE_PASSWORD)\
+        .build()
+    
+    execution_options = JdbcExecutionOptions.Builder() \
+        .with_batch_interval_ms(1000) \
+        .with_batch_size(1000) \
+        .with_max_retries(3) \
+        .build()
+
+    jdbc_sink = JdbcSink.sink(
+        sql,
+        type_info=clickhouse_row_type,
+        jdbc_execution_options=execution_options,
+        jdbc_connection_options=connection_options
+    )
+    
+    combined_stream.add_sink(jdbc_sink)
+
+    combined_stream.print("Data for ClickHouse")
+    
+    env.execute("Kafka to ClickHouse JDBC Job")
 
 if __name__ == "__main__":
     kafka_sink_example()
