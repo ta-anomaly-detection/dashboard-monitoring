@@ -1,4 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
 scrape_configs:
-  - job_name: 'kafka'
+  # Kafka JMX Metrics
+  - job_name: 'kafka-jmx'
     static_configs:
       - targets: ['kafka-server:7071']
+    scrape_interval: 10s
+    metrics_path: /metrics
+
+  # Filebeat Metrics
+  - job_name: 'filebeat'
+    static_configs:
+      - targets: ['filebeat:5066']
+    scrape_interval: 15s
+
+  # Flink Metrics
+  - job_name: 'flink'
+    static_configs:
+      - targets: ['flink-jobmanager-1:9249', 'flink-taskmanager-1:9249']
+    scrape_interval: 15s
+
+  # ClickHouse Metrics (if you expose them)
+  - job_name: 'clickhouse'
+    static_configs:
+      - targets: ['clickhouse-exporter:9363']
+    scrape_interval: 30s
+
+  # System Metrics (Node Exporter)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

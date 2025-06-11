@@ -41,6 +41,8 @@ services:
     image: docker.elastic.co/beats/filebeat:8.13.1
     container_name: filebeat
     user: root
+    ports:
+      - "5066:5066"
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - app-data:/var/app/logs:ro
@@ -48,12 +50,13 @@ services:
     environment:
       - KAFKA_BROKERS=kafka-server:9092
       - KAFKA_TOPIC=web-server-logs
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     command: [ "--strict.perms=false" ]
     depends_on:
       - web-server-app
     networks:
       - log-monitor-network
-
+  
 volumes:
   app-data: {}
   pgdata:

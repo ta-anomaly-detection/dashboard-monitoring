@@ -17,6 +17,17 @@ services:
       - ./migrations:/migrations
     entrypoint: ["./entrypoint.sh"]
 
+  clickhouse-exporter:
+    image: f1yegor/clickhouse-exporter:latest
+    container_name: clickhouse-exporter
+    networks:
+      - log-monitor-network
+    ports:
+      - "9363:9363"
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+    restart: unless-stopped
 volumes:
   clickhouse_data:
 

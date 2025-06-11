@@ -7,16 +7,33 @@ services:
       - log-monitor-network
     ports:
       - 8081:8081
+      - 9249:9249
+    # volumes:
+    #   - ./conf:/opt/flink/conf
     environment:
-      FLINK_PROPERTIES: "jobmanager.rpc.address: jobmanager"
+    - |
+      FLINK_PROPERTIES=
+      jobmanager.rpc.addres: jobmanager
+      metrics.reporters: prom
+      metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+      metrics.reporter.prom.port: 9249
     command: jobmanager
 
   taskmanager:
     image: flink:1.18
     networks:
       - log-monitor-network
+    ports:
+      - 9250:9249
+    # volumes:
+    #   - ./conf:/opt/flink/conf
     environment:
-      FLINK_PROPERTIES: "jobmanager.rpc.address: jobmanager"
+    - |
+      FLINK_PROPERTIES=
+      jobmanager.rpc.addres: jobmanager
+      metrics.reporters: prom
+      metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+      metrics.reporter.prom.port: 9249
     command: taskmanager
 
   app:

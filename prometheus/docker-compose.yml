@@ -10,6 +10,19 @@ services:
     ports:
       - "9090:9090"
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    command:
+      - '--path.rootfs=/host'
+    networks:
+      - log-monitor-network
+    ports:
+      - "9100:9100"
+    volumes:
+      - '/:/host:ro,rslave'
+    restart: unless-stopped
+
 networks:
   log-monitor-network:
     external: true

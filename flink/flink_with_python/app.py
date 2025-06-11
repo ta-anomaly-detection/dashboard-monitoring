@@ -160,6 +160,7 @@ def kafka_sink_example():
     env.add_jars("file:///jars/flink-sql-connector-kafka-3.0.1-1.18.jar")
     env.add_jars("file:///jars/flink-connector-jdbc-3.1.2-1.17.jar")
     env.add_jars("file:///jars/clickhouse-jdbc-0.4.6-all.jar")
+    # env.add_jars("file:///jars/flink-metrics-prometheus-1.18.1.jar")
 
     print_configuration()
 

@@ -21,6 +21,7 @@ CREATE TABLE web_server_logs (
     referrer String,
     request_id String,
     msg String,
-    level String
+    level String,
+    ingestion_time DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 ORDER BY (ts);
