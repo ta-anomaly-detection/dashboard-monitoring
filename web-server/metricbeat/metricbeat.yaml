@@ -1,0 +1,22 @@
+metricbeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+output.redis:
+  hosts: ["redis:6379"]
+  key: "metricbeat"
+  db: 0
+
+metricbeat.modules:
+  - module: beat
+    metricsets:
+      - cpu
+      - memory
+      - network
+      - diskio
+      - filesystem
+    period: 10s
+    hosts: ["http://filebeat:5066"]
+    #username: "user"
+    #password: "secret"
+    xpack.enabled: true

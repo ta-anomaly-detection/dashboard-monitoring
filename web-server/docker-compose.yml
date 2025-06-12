@@ -50,12 +50,32 @@ services:
     environment:
       - KAFKA_BROKERS=kafka-server:9092
       - KAFKA_TOPIC=web-server-logs
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     command: [ "--strict.perms=false" ]
     depends_on:
       - web-server-app
     networks:
       - log-monitor-network
+  
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.13.1
+    container_name: metricbeat
+    user: root
+    volumes:
+      - ./metricbeat/metricbeat.yaml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    command: ["--strict.perms=false", "-system.hostfs=/hostfs"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - "5067:5067"
+    depends_on:
+      - filebeat
+    networks:
+      - log-monitor-network
+
   
 volumes:
   app-data: {}

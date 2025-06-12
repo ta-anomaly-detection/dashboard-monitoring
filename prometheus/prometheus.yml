@@ -25,7 +25,7 @@ scrape_configs:
   # ClickHouse Metrics (if you expose them)
   - job_name: 'clickhouse'
     static_configs:
-      - targets: ['clickhouse-exporter:9363']
+      - targets: ['clickhouse:9363']
     scrape_interval: 30s
 
   # System Metrics (Node Exporter)

@@ -1,4 +1,4 @@
-.PHONY: up-all up-web-server up-kafka up-flink up-clickhouse up-prometheus up-grafana down-web-server down-kafka down-flink down-clickhouse down-prometheus down-grafana down-all logs
+.PHONY: up-all up-web-server up-kafka up-flink up-clickhouse up-redis up-prometheus up-grafana down-web-server down-kafka down-flink down-clickhouse down-redis down-prometheus down-grafana down-all logs
 
 up-all:
 	@echo "Deploying all services in order..."
@@ -20,6 +20,10 @@ up-clickhouse:
 	@echo "Starting ClickHouse..."
 	docker compose -f clickhouse/docker-compose.yml up --build -d
 
+up-redis:
+	@echo "Starting Redis..."
+	docker compose -f redis/docker-compose.yml up --build -d
+
 up-prometheus:
 	@echo "Starting Prometheus..."
 	docker compose -f prometheus/docker-compose.yml up --build -d
@@ -40,6 +44,9 @@ down-flink:
 down-clickhouse:
 	docker compose -f clickhouse/docker-compose.yml down -v
 
+down-redis:
+	docker compose -f redis/docker-compose.yml down -v
+
 down-prometheus:
 	docker compose -f prometheus/docker-compose.yml down -v
 
@@ -51,6 +58,7 @@ down-all:
 	docker compose -f kafka/docker-compose.yml down -v
 	docker compose -f flink/docker-compose.yml down -v
 	docker compose -f clickhouse/docker-compose.yml down -v
+	docker compose -f redis/docker-compose.yml down -v
 	docker compose -f grafana/docker-compose.yml down -v
 	docker compose -f prometheus/docker-compose.yml down -v
 	docker compose -f web-server/docker-compose.yml down -v
@@ -60,5 +68,6 @@ logs:
 	docker compose -f kafka/docker-compose.yml logs -f
 	docker compose -f flink/docker-compose.yml logs -f
 	docker compose -f clickhouse/docker-compose.yml logs -f
+	docker compose -f redis/docker-compose.yml logs -f
 	docker compose -f prometheus/docker-compose.yml logs -f
 	docker compose -f grafana/docker-compose.yml logs -f

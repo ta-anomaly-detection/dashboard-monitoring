@@ -31,5 +31,7 @@ logging:
 # Enable HTTP endpoint for metrics
 http:
   enabled: true
-  host: "0.0.0.0"
   port: 5066
+
+monitoring:
+  enabled: false
