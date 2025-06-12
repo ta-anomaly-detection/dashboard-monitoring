@@ -18,7 +18,7 @@ func BuildDSN(viper *viper.Viper, forLibPQ bool) string {
 	port := viper.GetInt("database.port")
 	database := viper.GetString("database.name")
 	sslMode := viper.GetString("database.sslmode")
-	timezone := viper.GetString("database.timezone")
+	// timezone := viper.GetString("database.timezone")
 
 	if forLibPQ {
 		return fmt.Sprintf(
@@ -28,8 +28,8 @@ func BuildDSN(viper *viper.Viper, forLibPQ bool) string {
 	}
 
 	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
-		host, username, password, database, port, sslMode, timezone,
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s",
+		host, username, password, database, port, sslMode,
 	)
 }
 

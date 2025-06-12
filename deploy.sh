@@ -19,6 +19,30 @@ echo "Starting Web Server..."
 echo "Waiting for Web Server on port 3000..."
 wait_for_port "localhost" "3000"
 
+echo "Waiting for Web DB on port 5432..."
+wait_for_port "localhost" "5432"
+echo "Running Web DB migrations..."
+
+docker exec web-server-db sh -c '
+  echo "🚀 Running migrations from /migrations/*.up.sql"
+  for f in /migrations/*.up.sql; do
+    if [ -f "$f" ]; then
+      echo "🔹 Running migration: $f"
+      psql -U postgres -d web_server -f "$f"
+      if [ $? -ne 0 ]; then
+        echo "❌ Error running migration: $f"
+        exit 1
+      fi
+    fi
+  done
+  echo "✅ All migrations executed successfully."
+'
+if [ $? -ne 0 ]; then
+  echo "Error running migrations on Web DB"
+  exit 1
+fi
+echo "Web DB migrations completed successfully."
+
 ### 2. Start Kafka ###
 echo "Starting Kafka..."
 (cd kafka && docker-compose up --build -d)

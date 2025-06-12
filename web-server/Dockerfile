@@ -8,7 +8,7 @@ RUN apk add --no-cache curl build-base git
 WORKDIR /app
 
 # Install golang-migrate
-RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-amd64.tar.gz | tar xvz && \
+RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.3/migrate.linux-amd64.tar.gz | tar xvz && \
     mv migrate /usr/local/bin/migrate && \
     chmod +x /usr/local/bin/migrate
 
@@ -46,4 +46,5 @@ COPY config.yaml .
 COPY db/migrations ./db/migrations
 
 # Command to run the executable
-CMD ./web-server migrate up && ./web-server serve
+# CMD ["sh", "-c", "./web-server migrate up && ./web-server serve"]
+CMD ./web-server serve

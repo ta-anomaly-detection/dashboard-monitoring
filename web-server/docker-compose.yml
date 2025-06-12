@@ -23,7 +23,7 @@ services:
       - log-monitor-network
 
   web-server-db:
-    image: postgres:15
+    image: postgres:17
     container_name: web-server-db
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -31,6 +31,8 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/migrations
+      - ./run-migrations.sh:/docker-entrypoint-initdb.d/01_run_migrations.sh
     ports:
       - "5432:5432"
     restart: unless-stopped
