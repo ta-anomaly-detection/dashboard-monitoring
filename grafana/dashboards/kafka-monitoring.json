@@ -433,7 +433,7 @@
           "editorMode": "code",
           "expr": "rate(kafka_server_brokertopicmetrics_messagesin_total[1m])",
           "instant": false,
-          "legendFormat": "Messages In - {{topic}}",
+          "legendFormat": "Messages In",
           "range": true,
           "refId": "A"
         },
@@ -446,7 +446,7 @@
           "expr": "rate(kafka_server_brokertopicmetrics_messagesout_total[1m])",
           "hide": false,
           "instant": false,
-          "legendFormat": "Messages Out - {{topic}}",
+          "legendFormat": "Messages Out ",
           "range": true,
           "refId": "B"
         }
@@ -548,7 +548,7 @@
           "editorMode": "code",
           "expr": "rate(kafka_server_brokertopicmetrics_bytesin_total[1m])",
           "instant": false,
-          "legendFormat": "Bytes In - {{topic}}",
+          "legendFormat": "Bytes In",
           "range": true,
           "refId": "A"
         },
@@ -561,7 +561,7 @@
           "expr": "rate(kafka_server_brokertopicmetrics_bytesout_total[1m])",
           "hide": false,
           "instant": false,
-          "legendFormat": "Bytes Out - {{topic}}",
+          "legendFormat": "Bytes Out",
           "range": true,
           "refId": "B"
         }
@@ -1385,5 +1385,5 @@
   "timezone": "",
   "title": "Pipeline Performance Dashboard - Architecture Comparison",
   "uid": "pipeline-performance",
-  "version": 2
+  "version": 3
 }

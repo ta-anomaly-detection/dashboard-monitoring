@@ -34,6 +34,8 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
     restart: always
+    networks:
+      - log-monitor-network
 
 networks:
   log-monitor-network:

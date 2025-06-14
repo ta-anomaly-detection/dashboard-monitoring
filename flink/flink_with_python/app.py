@@ -67,8 +67,8 @@ class ParseJson(MapFunction):
         try:
             outer_data = json.loads(value)
 
-            if "message" in outer_data:
-                data = json.loads(outer_data["message"])
+            if "log" in outer_data:
+                data = json.loads(outer_data["log"])
             else:
                 data = outer_data
 

@@ -39,50 +39,26 @@ services:
     networks:
       - log-monitor-network
 
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.13.1
-    container_name: filebeat
-    user: root
+  fluentbit:
+    image: fluent/fluent-bit:2.1
+    container_name: fluentbit
     ports:
-      - "5066:5066"
+      - "2020:2020" 
+      - "2021:2021"
     volumes:
-      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./fluentbit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
       - app-data:/var/app/logs:ro
-      - filebeat-data:/usr/share/filebeat/data 
     environment:
       - KAFKA_BROKERS=kafka-server:9092
       - KAFKA_TOPIC=web-server-logs
-    command: [ "--strict.perms=false" ]
     depends_on:
       - web-server-app
     networks:
       - log-monitor-network
-  
-  metricbeat:
-    image: docker.elastic.co/beats/metricbeat:8.13.1
-    container_name: metricbeat
-    user: root
-    volumes:
-      - ./metricbeat/metricbeat.yaml:/usr/share/metricbeat/metricbeat.yml:ro
-      - /proc:/hostfs/proc:ro
-      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
-      - /:/hostfs:ro
-    command: ["--strict.perms=false", "-system.hostfs=/hostfs"]
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    ports:
-      - "5067:5067"
-    depends_on:
-      - filebeat
-    networks:
-      - log-monitor-network
 
-  
 volumes:
   app-data: {}
   pgdata:
-  filebeat-data: {}
 
 networks:
   log-monitor-network:

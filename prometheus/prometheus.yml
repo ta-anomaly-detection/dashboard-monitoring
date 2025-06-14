@@ -11,10 +11,11 @@ scrape_configs:
     metrics_path: /metrics
 
   # Filebeat Metrics
-  - job_name: 'filebeat'
+  - job_name: 'fluentbit'
     static_configs:
-      - targets: ['filebeat:5066']
-    scrape_interval: 15s
+      - targets: ['fluentbit:2020']
+    scrape_interval: 10s
+    metrics_path: /api/v1/metrics/prometheus
 
   # Flink Metrics
   - job_name: 'flink'
