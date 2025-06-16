@@ -749,7 +749,7 @@
           },
           "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT toStartOfMinute(ts) as time, count() / 60 as requests_per_second FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
+          "rawSql": "SELECT toStartOfMinute(time) as time, count() / 60 as requests_per_second FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
           "refId": "A"
         },
         {
@@ -772,7 +772,7 @@
           },
           "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT toStartOfMinute(ts) as time, countIf(response_status >= 500) / 60 as errors_per_second FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
+          "rawSql": "SELECT toStartOfMinute(time) as time, countIf(response_code >= 500) / 60 as errors_per_second FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
           "refId": "B"
         }
       ],
@@ -862,7 +862,7 @@
           },
           "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT response_status, count(*) as count FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY response_status ORDER BY count DESC",
+          "rawSql": "SELECT response_code, count(*) as count FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY response_code ORDER BY count DESC",
           "refId": "A"
         }
       ],
@@ -971,7 +971,7 @@
           },
           "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT toStartOfMinute(ts) as time, quantile(0.50)(latency_us) as p50, quantile(0.95)(latency_us) as p95, quantile(0.99)(latency_us) as p99 FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
+          "rawSql": "SELECT toStartOfMinute(time) as time, quantile(0.50)(response_time) as p50, quantile(0.95)(response_time) as p95, quantile(0.99)(response_time) as p99 FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
           "refId": "A"
         }
       ],
@@ -2186,7 +2186,7 @@
           },
           "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT\n    toStartOfInterval(ingestion_time, INTERVAL 1 minute) AS time_bucket,\n    avg(toUnixTimestamp(ingestion_time) - toUnixTimestamp(ts)) AS avg_latency_seconds,\n    max(toUnixTimestamp(ingestion_time) - toUnixTimestamp(ts)) AS max_latency_seconds,\n    count() AS events\nFROM web_server_logs\nWHERE ingestion_time >= now() - INTERVAL 1 hour\nGROUP BY time_bucket\nORDER BY time_bucket\n",
+          "rawSql": "SELECT\n    toStartOfInterval(ingestion_time, INTERVAL 1 minute) AS time_bucket,\n    avg(toUnixTimestamp(ingestion_time) - toUnixTimestamp(time)) AS avg_latency_seconds,\n    max(toUnixTimestamp(ingestion_time) - toUnixTimestamp(time)) AS max_latency_seconds,\n    count() AS events\nFROM web_server_logs\nWHERE ingestion_time >= now() - INTERVAL 1 hour\nGROUP BY time_bucket\nORDER BY time_bucket\n",
           "refId": "A"
         }
       ],
@@ -2414,7 +2414,7 @@
           },
           "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT count(*) \nFROM web_server_logs\nWHERE ts >= now() - INTERVAL 5 minute",
+          "rawSql": "SELECT count(*) \nFROM web_server_logs\nWHERE time >= now() - INTERVAL 5 minute",
           "refId": "B"
         },
         {
@@ -2463,12 +2463,12 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Web Log Monitoring Pipeline - Architecture Comparison",
   "uid": "weblog-monitoring-pipeline",
-  "version": 9
+  "version": 2
 }

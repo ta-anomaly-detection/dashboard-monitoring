@@ -29,7 +29,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -104,9 +104,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT \n  toStartOfInterval(ts, INTERVAL 1 hour) AS time,\n  count(*) \nFROM web_server_logs\nWHERE ts >= now() - INTERVAL 1 hour\nGROUP BY time\nORDER BY time",
+          "rawSql": "SELECT \n  toStartOfInterval(time, INTERVAL 1 hour) AS time,\n  count(*) \nFROM web_server_logs\nWHERE time >= now() - INTERVAL 1 hour\nGROUP BY time\nORDER BY time",
           "refId": "A"
         }
       ],
@@ -189,9 +189,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT avg(latency_us) / 1000 AS avg_latency_ms\nFROM web_server_logs\nWHERE ts >= now() - INTERVAL 1 HOUR",
+          "rawSql": "SELECT avg(response_time) / 1000 AS avg_latency_ms\nFROM web_server_logs\nWHERE time >= now() - INTERVAL 1 HOUR",
           "refId": "A"
         }
       ],
@@ -276,9 +276,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT (countIf(response_status >= 400) * 100.0 / count(*)) AS error_rate\nFROM web_server_logs\nWHERE ts >= now() - INTERVAL 1 HOUR",
+          "rawSql": "SELECT (countIf(response_code >= 400) * 100.0 / count(*)) AS error_rate\nFROM web_server_logs\nWHERE time >= now() - INTERVAL 1 HOUR",
           "refId": "A"
         }
       ],
@@ -357,9 +357,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT uniq(remote_ip) as unique_visitors FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR",
+          "rawSql": "SELECT uniq(ip) as unique_visitors FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR",
           "refId": "A"
         }
       ],
@@ -466,9 +466,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT toStartOfMinute(ts) as time, count(*) as requests FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
+          "rawSql": "SELECT toStartOfMinute(time) as time, count(*) as requests FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
           "refId": "A"
         }
       ],
@@ -575,9 +575,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "timeseries",
-          "rawSql": "SELECT toStartOfMinute(ts) as time, quantile(0.5)(latency_us) / 1000 as p50, quantile(0.95)(latency_us) / 1000 as p95, quantile(0.99)(latency_us) / 1000 as p99 FROM web_server_logs WHERE $__timeFilter(ts) GROUP BY toStartOfMinute(ts) ORDER BY time",
+          "rawSql": "SELECT\n  toStartOfMinute(time) AS bucket_time,\n  quantile(0.5)(response_time) / 1000 AS p50,\n  quantile(0.95)(response_time) / 1000 AS p95,\n  quantile(0.99)(response_time) / 1000 AS p99\nFROM web_server_logs\nWHERE $__timeFilter(time)\nGROUP BY bucket_time\nORDER BY bucket_time ASC",
           "refId": "A"
         }
       ],
@@ -616,7 +616,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
         "y": 17
       },
@@ -652,9 +652,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT response_status, count(*) as count FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY response_status ORDER BY count DESC",
+          "rawSql": "SELECT response_code, count(*) as count FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY response_code ORDER BY count DESC",
           "refId": "A"
         }
       ],
@@ -689,92 +689,12 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "requests"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "gauge"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 17
-      },
-      "id": 8,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "12.0.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "feo9rg30km0hsb"
-          },
-          "expr": "SELECT country, count(*) as requests, uniq(remote_ip) as unique_ips FROM web_server_logs WHERE ts >= $__timeFrom AND ts <= $__timeTo GROUP BY country ORDER BY requests DESC LIMIT 10",
-          "format": "table",
-          "refId": "A"
-        }
-      ],
-      "title": "Top Countries",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "feo9rg30km0hsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
+        "w": 12,
+        "x": 12,
         "y": 17
       },
       "id": 9,
@@ -810,9 +730,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT user_agent, count(*) as requests FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY user_agent ORDER BY requests DESC LIMIT 10",
+          "rawSql": "SELECT user_agent, count(*) as requests FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY user_agent ORDER BY requests DESC LIMIT 10",
           "refId": "A"
         }
       ],
@@ -918,9 +838,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT http_method, count(*) as count FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY http_method ORDER BY count DESC",
+          "rawSql": "SELECT method, count(*) as count FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY method ORDER BY count DESC",
           "refId": "A"
         }
       ],
@@ -996,9 +916,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT url_path, count(*) as requests, avg(latency_us) / 1000 as avg_latency_ms FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR GROUP BY url_path ORDER BY requests DESC LIMIT 15",
+          "rawSql": "SELECT url, count(*) as requests, avg(response_time) / 1000 as avg_latency_ms FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR GROUP BY url ORDER BY requests DESC LIMIT 15",
           "refId": "A"
         }
       ],
@@ -1088,9 +1008,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT response_size FROM web_server_logs WHERE ts >= now() - INTERVAL 1 HOUR",
+          "rawSql": "SELECT response_byte FROM web_server_logs WHERE time >= now() - INTERVAL 1 HOUR",
           "refId": "A"
         }
       ],
@@ -1144,9 +1064,9 @@
               "table": ""
             }
           },
-          "pluginVersion": "4.9.0",
+          "pluginVersion": "4.10.0",
           "queryType": "table",
-          "rawSql": "SELECT ts, remote_ip, response_status, url_path, msg FROM web_server_logs WHERE response_status >= 400 AND ts >= now() - INTERVAL 1 HOUR ORDER BY ts DESC LIMIT 100",
+          "rawSql": "SELECT time, ip, response_code, url FROM web_server_logs WHERE response_code >= 400 AND time >= now() - INTERVAL 1 HOUR ORDER BY time DESC LIMIT 100",
           "refId": "A"
         }
       ],
@@ -1200,5 +1120,5 @@
   "timezone": "browser",
   "title": "Web Server Logs Dashboard",
   "uid": "7ddd3377-3b98-4bd3-811c-f2e940b2f5bf",
-  "version": 4
+  "version": 13
 }

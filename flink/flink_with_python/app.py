@@ -73,23 +73,16 @@ class ParseJson(MapFunction):
                 data = outer_data
 
             return Row(
-                data.get("level"),
-                clean_ts(data.get("ts")),
-                data.get("caller"),
-                data.get("msg"),
-                data.get("remote_ip"),
-                data.get("latency"),
-                data.get("host"),
-                data.get("http_method"),
-                data.get("request_uri"),
-                data.get("http_version"),
-                int(data.get("response_status", 0)),
-                int(data.get("response_size", 0)),
-                data.get("referrer"),
-                data.get("request_body"),
-                data.get("request_time"),
-                data.get("user_agent"),
-                data.get("request_id")
+                data.get("ip"),
+                clean_ts(data.get("time")),
+                data.get("method"),
+                data.get("responseTime"),
+                data.get("url"),
+                data.get("params"),
+                data.get("protocol"),
+                int(data.get("responseCode", 0)),
+                int(data.get("responseByte", 0)),
+                data.get("userAgent"),
             )
         except Exception as e:
             logging.error(f"Failed to parse JSON: {e} | Raw message: {value}")
@@ -98,12 +91,10 @@ class ParseJson(MapFunction):
 
 
 row_type = Types.ROW_NAMED(
-    field_names=["level", "ts", "caller", "msg", "remote_ip", "latency", "host", "http_method", "request_uri", "http_version",
-                 "response_status", "response_size", "referrer", "request_body", "request_time", "user_agent", "request_id"],
-    field_types=[Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(),
-                 Types.STRING(), Types.STRING(), Types.STRING(), Types.INT(
-    ), Types.INT(), Types.STRING(), Types.STRING(),
-        Types.STRING(), Types.STRING(), Types.STRING()]
+    field_names=["ip", "time", "method", "responseTime", "url",
+                 "params", "protocol", "responseCode", "responseByte", "userAgent"],
+    field_types=[Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(
+    ), Types.STRING(), Types.STRING(), Types.INT(), Types.INT(), Types.STRING()]
 )
 
 
@@ -184,71 +175,58 @@ def kafka_sink_example():
     parsed_stream = ds.map(ParseJson(), output_type=row_type)
 
     table = t_env.from_data_stream(parsed_stream).alias(
-        "level", "ts", "caller", "msg", "remote_ip", "latency", "host",
-        "http_method", "request_uri", "http_version", "response_status",
-        "response_size", "referrer", "request_body", "request_time",
-        "user_agent", "request_id"
+        "ip",
+        "time",
+        "method",
+        "responseTime",
+        "url",
+        "params",
+        "protocol",
+        "responseCode",
+        "responseByte",
+        "userAgent"
     )
 
     processed_table = table.select(
-        col("ts"),
-        col("remote_ip"),
-        parse_latency(col("latency")).alias("latency_us"),
-        col("host"),
-        col("http_method"),
-        encode_method(col("http_method")).alias("encoded_http_method"),
-        col("request_uri"),
-        split_url(col("request_uri")).alias("url_parts"),
-        col("http_version"),
-        encode_protocol(col("http_version")).alias("encoded_http_version"),
-        col("response_status"),
-        encode_status(col("response_status")).alias("encoded_status"),
-        col("response_size"),
-        col("user_agent"),
-        extract_device(col("user_agent")).alias("device_family"),
-        map_device(extract_device(col("user_agent"))).alias("encoded_device"),
-        col("remote_ip").alias("country"),
-        encode_country(col("remote_ip")).alias("encoded_country"),
-        col("referrer"),
-        col("request_id"),
-        col("msg"),
-        col("level")
+        col("ip"),
+        col("time"),
+        col("method"),
+        parse_latency(col("responseTime")).alias("response_time"),
+        col("url"),
+        col("params"),
+        col("protocol"),
+        col("responseCode"),
+        col("responseByte"),
+        col("userAgent"),
     )
 
     result_stream = t_env.to_data_stream(processed_table)
+    
+    # debug
+    result_stream.print("Processed Stream")
 
     clickhouse_row_type = Types.ROW_NAMED(
         field_names=[
-            "ts", "remote_ip", "latency_us", "host", "http_method",
-            "encoded_http_method", "request_uri", "url_path", "url_query",
-            "http_version", "encoded_http_version", "response_status",
-            "encoded_status", "response_size", "user_agent",
-            "device_family", "encoded_device", "country",
-            "encoded_country", "referrer", "request_id", "msg", "level"
+            "ip", "time", "method", "response_time", "url",
+            "params", "protocol", "response_code", "response_byte", "user_agent"
         ],
         field_types=[
-            Types.STRING(), Types.STRING(), Types.FLOAT(), Types.STRING(), Types.STRING(),
-            Types.INT(), Types.STRING(), Types.STRING(), Types.STRING(),
-            Types.STRING(), Types.INT(), Types.INT(),
-            Types.INT(), Types.INT(), Types.STRING(),
-            Types.STRING(), Types.INT(), Types.STRING(),
-            Types.INT(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()
+            Types.STRING(), Types.STRING(), Types.STRING(), Types.FLOAT(),
+            Types.STRING(), Types.STRING(), Types.STRING(),
+            Types.INT(), Types.INT(), Types.STRING()
         ]
     )
 
-    combined_stream = result_stream.map(
-        CombineProcessedWithRaw(),
-        output_type=clickhouse_row_type
-    )
+    # combined_stream = result_stream.map(
+    #     CombineProcessedWithRaw(),
+    #     output_type=clickhouse_row_type
+    # )
 
     sql = f"""
     INSERT INTO {CLICKHOUSE_DB}.{CLICKHOUSE_TABLE} (
-        ts, remote_ip, latency_us, host, http_method, encoded_http_method,
-        request_uri, url_path, url_query, http_version, 
-        encoded_http_version, response_status, encoded_status, response_size,
-        user_agent, device_family, encoded_device, country, encoded_country,
-        referrer, request_id, msg, level
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ip, time, method, response_time, url, params, protocol,
+        response_code, response_byte, user_agent
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     connection_options = JdbcConnectionOptions.JdbcConnectionOptionsBuilder()\
@@ -271,9 +249,9 @@ def kafka_sink_example():
         jdbc_connection_options=connection_options
     )
 
-    combined_stream.add_sink(jdbc_sink)
+    result_stream.add_sink(jdbc_sink)
 
-    combined_stream.print("Data for ClickHouse")
+    result_stream.print("Data for ClickHouse")
 
     env.execute("Kafka to ClickHouse JDBC Job")
 

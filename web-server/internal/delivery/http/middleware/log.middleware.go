@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"bytes"
-	"io"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -23,25 +21,17 @@ func ZapLogger(log *zap.Logger) echo.MiddlewareFunc {
 			req := c.Request()
 			res := c.Response()
 
-			bodyBytes, err := io.ReadAll(req.Body)
-			if err != nil {
-				bodyBytes = []byte("could not read body")
-			}
-			req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
 			fields := []zapcore.Field{
-				zap.String("remote_ip", c.RealIP()),
-				zap.String("latency", time.Since(start).String()),
-				zap.String("host", req.Host),
-				zap.String("http_method", req.Method),
-				zap.String("request_uri", req.RequestURI),
-				zap.String("http_version", req.Proto),
-				zap.Int("response_status", res.Status),
-				zap.Int64("response_size", res.Size),
-				zap.String("referrer", req.Referer()),
-				zap.String("request_body", string(bodyBytes)),
-				zap.String("request_time", start.Format(time.RFC3339)),
-				zap.String("user_agent", req.UserAgent()),
+				zap.String("ip", c.RealIP()),
+				zap.String("time", start.Format(time.RFC3339)),
+				zap.String("method", req.Method),
+				zap.String("responseTime", time.Since(start).String()),
+				zap.String("url", req.RequestURI),
+				zap.String("params", req.URL.RawQuery),
+				zap.String("protocol", req.Proto),
+				zap.Int("responseCode", res.Status),
+				zap.Int64("responseByte", res.Size),
+				zap.String("userAgent", req.UserAgent()),
 			}
 
 			auth := GetUser(c)
