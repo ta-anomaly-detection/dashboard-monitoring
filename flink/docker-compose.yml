@@ -5,6 +5,9 @@ services:
     image: flink:1.18
     networks:
       - log-monitor-network
+    build:
+      context: .
+      dockerfile: Dockerfile.flinkmanager
     ports:
       - 8081:8081
       - 9249:9249
@@ -13,14 +16,33 @@ services:
     environment:
     - |
       FLINK_PROPERTIES=
-      jobmanager.rpc.addres: jobmanager
+      jobmanager.rpc.address: jobmanager
       metrics.reporters: prom
       metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
       metrics.reporter.prom.port: 9249
+      taskmanager.numberOfTaskSlots: 2
+      parallelism.default: 2
+      python.client.executable: python3
+      python.executable: python3
     command: jobmanager
+    # entrypoint: |
+    #   bash -c "
+    #     apt-get update && apt-get install -y python3 python3-pip python3-dev default-jdk-headless default-jdk
+    #     ln -sf /usr/bin/python3 /usr/bin/python
+    #     JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
+    #     pip3 install -U pip wheel setuptools grpcio-tools==1.59.3 grpcio==1.59.3 loguru==0.7.2 black==23.11.0 asyncio==3.4.3 clickhouse-connect==0.8.17 clickhouse-driver==0.2.9 python-dotenv==1.0.0
+    #     JAVA_HOME=$JAVA_HOME pip3 install apache-flink==1.18.1
+    #     wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.0.1-1.18/flink-sql-connector-kafka-3.0.1-1.18.jar
+    #     wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/3.1.2-1.17/flink-connector-jdbc-3.1.2-1.17.jar
+    #     wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/clickhouse-jdbc-0.4.6-all.jar
+    #     /docker-entrypoint.sh jobmanager
+    #   "
 
   taskmanager:
     image: flink:1.18
+    build:
+      context: .
+      dockerfile: Dockerfile.flinkmanager
     networks:
       - log-monitor-network
     ports:
@@ -30,11 +52,26 @@ services:
     environment:
     - |
       FLINK_PROPERTIES=
-      jobmanager.rpc.addres: jobmanager
+      jobmanager.rpc.address: jobmanager
       metrics.reporters: prom
       metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
       metrics.reporter.prom.port: 9249
+      taskmanager.numberOfTaskSlots: 2
+      python.client.executable: python3
+      python.executable: python3
     command: taskmanager
+    # entrypoint: |
+    #   bash -c "
+    #     apt-get update && apt-get install -y python3 python3-pip python3-dev default-jdk-headless default-jdk
+    #     ln -sf /usr/bin/python3 /usr/bin/python
+    #     JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
+    #     pip3 install -U pip wheel setuptools grpcio-tools==1.59.3 grpcio==1.59.3 loguru==0.7.2 black==23.11.0 asyncio==3.4.3 clickhouse-connect==0.8.17 clickhouse-driver==0.2.9 python-dotenv==1.0.0
+    #     JAVA_HOME=$JAVA_HOME pip3 install apache-flink==1.18.1
+    #     wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.0.1-1.18/flink-sql-connector-kafka-3.0.1-1.18.jar
+    #     wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/3.1.2-1.17/flink-connector-jdbc-3.1.2-1.17.jar
+    #     wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/clickhouse-jdbc-0.4.6-all.jar
+    #     /docker-entrypoint.sh taskmanager
+    #   "
 
   app:
     image: flink-app
@@ -44,12 +81,13 @@ services:
       KAFKA_BROKER: kafka-server:9092
       KAFKA_TOPIC: web-server-logs
       SINK_DIR: /sink
+      PYTHONPATH: /:/flink_with_python
     depends_on:
       - jobmanager
       - taskmanager
     volumes:
       - ./sink:/sink
-      # - ./flink_with_python/app.py:/taskscripts/app.py
+      - ./flink_with_python:/flink_with_python
     entrypoint:
       - tail
     command: 

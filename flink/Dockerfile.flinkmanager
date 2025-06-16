@@ -1,0 +1,87 @@
+FROM flink:1.18.1
+
+ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION:-3.9.18}
+ARG FLINK_VERSION
+ENV FLINK_VERSION=${FLINK_VERSION:-1.18.1}
+
+RUN wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.0.1-1.18/flink-sql-connector-kafka-3.0.1-1.18.jar && \
+    wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/3.1.2-1.17/flink-connector-jdbc-3.1.2-1.17.jar && \
+    wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/clickhouse-jdbc-0.4.6-all.jar
+
+## Python version (3.7, 3.8, 3.9 or 3.10) is required, apt repo 
+# Python 3.3 and later versions provide the lzma module. 
+#   However, if Python is installed using the source code and the lzma-dev package is not installed in the system, 
+#     the lzma module will not be installed.
+# https://support.huawei.com/enterprise/en/doc/EDOC1100289998/db0db8f0/modulenotfounderror-no-module-named-_lzma-
+# INFO:root:Starting up Python harness in a standalone process.
+# Traceback (most recent call last):
+#   File "/usr/local/lib/python3.8/site-packages/fastavro/read.py", line 2, in <module>
+#     from . import _read
+#   File "fastavro/_read.pyx", line 11, in init fastavro._read
+#   File "/usr/local/lib/python3.8/lzma.py", line 27, in <module>
+#     from _lzma import *
+# ModuleNotFoundError: No module named '_lzma'
+
+RUN apt-get update -y && \
+  apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libffi-dev liblzma-dev default-jdk-headless default-jdk && \
+  wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
+  tar -xvf Python-${PYTHON_VERSION}.tgz && \
+  cd Python-${PYTHON_VERSION} && \
+  ./configure --without-tests --enable-shared && \
+  make -j6 && \
+  make install && \
+  ldconfig /usr/local/lib && \
+  cd .. && rm -f Python-${PYTHON_VERSION}.tgz && rm -rf Python-${PYTHON_VERSION} && \
+  ln -s /usr/local/bin/python3 /usr/local/bin/python && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+# Install
+RUN pip3 install -U pip wheel setuptools \
+        grpcio-tools==1.59.3 \
+        grpcio==1.59.3 \
+        loguru==0.7.2 \
+        black==23.11.0 \
+        asyncio==3.4.3 \
+        clickhouse-connect==0.8.17 \
+        clickhouse-driver==0.2.9 \
+        python-dotenv==1.0.0
+RUN JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::") && \
+    JAVA_HOME=$JAVA_HOME pip3 install apache-flink==${FLINK_VERSION}
+
+COPY flink_with_python /flink_with_python
+ENV PYTHONPATH=/flink_with_python
+
+# Copy requirements file and install additional Python packages
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt
+
+# FROM flink:1.18
+
+# # Install Python and pip
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends \
+#     python3 python3-pip python3-dev \
+#     default-jdk-headless \
+#     default-jdk \
+#     && \
+#     ln -sf /usr/bin/python3 /usr/bin/python && \
+#     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# # Install pyflink with JAVA_HOME
+# RUN JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::") && \
+#     echo "Using JAVA_HOME: $JAVA_HOME" && \
+#     pip3 install -U pip wheel setuptools \
+#         grpcio-tools==1.59.3 \
+#         grpcio==1.59.3 \
+#         loguru==0.7.2 \
+#         black==23.11.0 \
+#         asyncio==3.4.3 \
+#         clickhouse-connect==0.8.17 \
+#         clickhouse-driver==0.2.9 \
+#         python-dotenv==1.0.0 && \
+#     JAVA_HOME=$JAVA_HOME pip3 install apache-flink==1.18.1
+
+# # Download JARs
+# RUN 

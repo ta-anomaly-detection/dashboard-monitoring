@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 
 def extract_values(record):
     if record is None:

@@ -27,7 +27,7 @@ func ZapLogger(log *zap.Logger) echo.MiddlewareFunc {
 				zap.String("method", req.Method),
 				zap.String("responseTime", time.Since(start).String()),
 				zap.String("url", req.RequestURI),
-				zap.String("params", req.URL.RawQuery),
+				zap.String("param", req.URL.RawQuery),
 				zap.String("protocol", req.Proto),
 				zap.Int("responseCode", res.Status),
 				zap.Int64("responseByte", res.Size),

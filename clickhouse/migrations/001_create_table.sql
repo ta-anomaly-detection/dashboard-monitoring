@@ -4,7 +4,7 @@ CREATE TABLE web_server_logs (
     method String,
     response_time Float32,
     url String,
-    params String,
+    param String,
     protocol String,
     response_code UInt16,
     response_byte UInt32,

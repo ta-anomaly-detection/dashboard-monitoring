@@ -78,7 +78,7 @@ class ParseJson(MapFunction):
                 data.get("method"),
                 data.get("responseTime"),
                 data.get("url"),
-                data.get("params"),
+                data.get("param"),
                 data.get("protocol"),
                 int(data.get("responseCode", 0)),
                 int(data.get("responseByte", 0)),
@@ -92,7 +92,7 @@ class ParseJson(MapFunction):
 
 row_type = Types.ROW_NAMED(
     field_names=["ip", "time", "method", "responseTime", "url",
-                 "params", "protocol", "responseCode", "responseByte", "userAgent"],
+                 "param", "protocol", "responseCode", "responseByte", "userAgent"],
     field_types=[Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(
     ), Types.STRING(), Types.STRING(), Types.INT(), Types.INT(), Types.STRING()]
 )
@@ -180,7 +180,7 @@ def kafka_sink_example():
         "method",
         "responseTime",
         "url",
-        "params",
+        "param",
         "protocol",
         "responseCode",
         "responseByte",
@@ -193,7 +193,7 @@ def kafka_sink_example():
         col("method"),
         parse_latency(col("responseTime")).alias("response_time"),
         col("url"),
-        col("params"),
+        col("param"),
         col("protocol"),
         col("responseCode"),
         col("responseByte"),
@@ -208,7 +208,7 @@ def kafka_sink_example():
     clickhouse_row_type = Types.ROW_NAMED(
         field_names=[
             "ip", "time", "method", "response_time", "url",
-            "params", "protocol", "response_code", "response_byte", "user_agent"
+            "param", "protocol", "response_code", "response_byte", "user_agent"
         ],
         field_types=[
             Types.STRING(), Types.STRING(), Types.STRING(), Types.FLOAT(),
@@ -224,7 +224,7 @@ def kafka_sink_example():
 
     sql = f"""
     INSERT INTO {CLICKHOUSE_DB}.{CLICKHOUSE_TABLE} (
-        ip, time, method, response_time, url, params, protocol,
+        ip, time, method, response_time, url, param, protocol,
         response_code, response_byte, user_agent
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
