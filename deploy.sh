@@ -107,11 +107,6 @@ echo "All migrations applied successfully."
 #   echo "Please check the Flink dashboard at http://localhost:8081 for job status."
 # fi
 
-### 5. Start Redis ###
-echo "Starting Redis..."
-(cd redis && docker-compose up --build -d)
-echo "Waiting for Redis to be ready on port 6379..."
-wait_for_port "localhost" "6379"
 
 ### 6. Start Prometheus ###
 echo "Starting Prometheus..."
@@ -139,6 +134,5 @@ echo "- Kafka UI:          http://localhost:8080"
 echo "- Kafka Zookeeper:   http://localhost:2181"
 echo "- JMX Exporter:      http://localhost:7071"
 echo "- Flink Dashboard:   http://localhost:8081"
-echo "- Redis:             http://localhost:6379"
 echo "- ClickHouse Client: http://localhost:8123"
 echo "- Grafana Dashboard: http://localhost:3001"
