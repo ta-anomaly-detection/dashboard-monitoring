@@ -1,0 +1,4 @@
+dummy
+logs
+__pycache__/
+dags/src/model/memstream/data/
