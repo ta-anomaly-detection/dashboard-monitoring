@@ -1,0 +1,10 @@
+pandas
+xlrd
+boto3
+openpyxl
+seaborn
+matplotlib
+numpy
+torch
+mlflow
+hyperopt
