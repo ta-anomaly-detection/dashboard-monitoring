@@ -3,6 +3,7 @@ import pandas as pd
 import io
 
 def load_data_from_s3(**kwargs):
+    key = kwargs.get('key') or kwargs['dag_run'].conf.get('key')
     s3_client = boto3.client(
         's3',
         aws_access_key_id='ACCESS_KEY',
@@ -10,7 +11,7 @@ def load_data_from_s3(**kwargs):
         region_name='ap-southeast-3'
     )
 
-    response = s3_client.get_object(Bucket='YOUR_BUCKET', Key='access_log.xlsx')
+    response = s3_client.get_object(Bucket='ta-18221', Key=key)
     file_stream = io.BytesIO(response['Body'].read())
     df = pd.read_excel(file_stream, engine='openpyxl')
     

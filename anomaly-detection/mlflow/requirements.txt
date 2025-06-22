@@ -5,5 +5,6 @@ openpyxl
 seaborn
 matplotlib
 numpy
-torch
 mlflow
+pysad
+scikit-learn
