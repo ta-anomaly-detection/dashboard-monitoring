@@ -16,10 +16,10 @@ apache-flink = "^1.18.0"
 clickhouse-connect = "^0.8.17"
 clickhouse-driver = "^0.2.9"
 python-dotenv = "^1.0.0"
-IP2Location = "^8.10.4"
 numpy = "^1.24.0"
 pandas = "^2.0"
 joblib = "^1.4.0"
+geocoder = "^1.38.0"
 
 [build-system]
 requires = ["poetry-core"]
