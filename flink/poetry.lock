@@ -949,6 +949,30 @@ files = [
 ]
 
 [[package]]
+name = "ip2location"
+version = "8.10.5"
+description = "This is an IP geolocation library that enables the user to find the country, region, city, latitude and longitude, ZIP code, time zone, ISP, domain name, area code, weather info, mobile info, elevation, usage type, address type and IAB category from an IP address. It supports both IPv4 and IPv6 lookup."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "IP2Location-8.10.5-py3-none-any.whl", hash = "sha256:eb7e2a54d168a2f082927ca71e166e5c767d48a6c04851e3230cddebc4d34c79"},
+    {file = "ip2location-8.10.5.tar.gz", hash = "sha256:e26bdd214be15a41030f4e7e6771df6ccbc75d743c8853933252369993a6368b"},
+]
+
+[[package]]
+name = "joblib"
+version = "1.5.1"
+description = "Lightweight pipelining with Python functions"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "joblib-1.5.1-py3-none-any.whl", hash = "sha256:4719a31f054c7d766948dcd83e9613686b27114f190f717cec7eaa2084f8a74a"},
+    {file = "joblib-1.5.1.tar.gz", hash = "sha256:f4f86e351f39fe3d0d32a9f2c3d8af1ee4cec285aafcb27003dda5205576b444"},
+]
+
+[[package]]
 name = "loguru"
 version = "0.7.2"
 description = "Python logging made (stupidly) simple"
@@ -1925,4 +1949,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "2d08783b283f7854271f45ea61ddc266e9754cca7010b84d196d7883154dce62"
+content-hash = "a022537851b8ebace496f650e502277351195dbe85557cc321ec3beee9ea9a3d"
