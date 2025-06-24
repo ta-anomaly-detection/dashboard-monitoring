@@ -2,6 +2,7 @@ import logging
 import re
 import requests
 import joblib
+import geocoder
 
 from pyflink.datastream.functions import MapFunction
 from pyflink.common import Row
@@ -24,6 +25,14 @@ class LogPreprocessor(MapFunction):
             return sum(int(octet) << (8 * (3 - i)) for i, octet in enumerate(octets))
         except:
             return 0
+    
+    def _ip_to_country(self, ip):
+        try:
+            ip = geocoder.ip(ip)
+            if (ip.country == "ID")
+                return 1
+             else
+                return 0   
 
     def _device_category(self, user_agent):
         if not isinstance(user_agent, str):
@@ -68,7 +77,7 @@ class LogPreprocessor(MapFunction):
     def map(self, row: Row) -> Row:
         try:
             size = row.responseByte
-            country = 1 if getattr(row, 'country', '') == "Indonesia" else 0
+            country = self._ip_to_country(row.ip)
             method = row.method
             device = self._device_category(row.userAgent)
 
