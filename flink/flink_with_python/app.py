@@ -12,6 +12,9 @@ from pyflink.datastream.functions import MapFunction
 from pyflink.table import StreamTableEnvironment
 from pyflink.table.expressions import col
 
+# TODO: Need to install packages via poetry
+# from logprocessor import LogPreprocessor
+
 from config import (
     KAFKA_BROKER,
     KAFKA_TOPIC,
@@ -97,6 +100,11 @@ row_type = Types.ROW_NAMED(
     ), Types.STRING(), Types.STRING(), Types.INT(), Types.INT(), Types.STRING()]
 )
 
+pca_output_type = Types.ROW_NAMED(
+    ["label_1", "label_2", "label_3"],
+    [Types.FLOAT(), Types.FLOAT(), Types.FLOAT()]
+)
+
 
 class CombineProcessedWithRaw(MapFunction):
     def map(self, row):
@@ -173,6 +181,9 @@ def kafka_sink_example():
         kafka_source, WatermarkStrategy.no_watermarks(), "Kafka Source")
 
     parsed_stream = ds.map(ParseJson(), output_type=row_type)
+
+    # TODO: Uncomment to implement LogPreprocessor for ML
+    # parsed_stream.map(LogPreprocessor(), output_type=pca_output_type)
 
     table = t_env.from_data_stream(parsed_stream).alias(
         "ip",

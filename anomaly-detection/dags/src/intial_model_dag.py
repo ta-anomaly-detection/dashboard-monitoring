@@ -1,6 +1,5 @@
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from datetime import datetime
 
 from src.preprocessing.s3_loader import load_data_from_s3
@@ -16,6 +15,9 @@ with DAG(
     load_data_task = PythonOperator(
         task_id='load_data_from_s3',
         python_callable=load_data_from_s3,
+        op_kwargs={
+            "key": "access_log.xlsx"
+        },
         provide_context=True
     )
 
@@ -25,9 +27,4 @@ with DAG(
         provide_context=True
     )
 
-    trigger_notify = TriggerDagRunOperator(
-        task_id="trigger_reload_model_dag",
-        trigger_dag_id="model_deployment",
-    )
-
-    load_data_task >> preprocess_data_task >> trigger_notify
+    load_data_task >> preprocess_data_task

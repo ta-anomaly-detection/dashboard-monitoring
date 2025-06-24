@@ -1,10 +1,11 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator, BranchPythonOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 
-from src.training.model_retrain import check_model_performance
+from src.training.model_retrain import evaluate_model
+from src.training.model_trainer import train_initial_model
+from src.preprocessing.s3_loader import load_data_from_s3
 
 default_args = {
     'owner': 'airflow',
@@ -20,15 +21,25 @@ with DAG(
     catchup=False,
     description='Weekly retraining DAG for MemStream model using Spark'
 ) as dag:
+    load_data = PythonOperator(
+        task_id='load_data_from_s3',
+        python_callable=load_data_from_s3,
+        op_kwargs={
+            'key': 'latest_access_log.xlsx'
+        },
+        provide_context=True,
+    )
+
     check_performance = BranchPythonOperator(
-        task_id='check_model_performance',
-        python_callable=check_model_performance,
+        task_id='evaluate_model',
+        python_callable=evaluate_model,
         provide_context=True
     )
 
     retrain_task = PythonOperator(
         task_id='retrain_model',
-        python_callable=lambda: print("Retraining start.")
+        python_callable=train_initial_model,
+        provide_context=True
     )
 
     skip_task = PythonOperator(
@@ -36,10 +47,4 @@ with DAG(
         python_callable=lambda: print("Model is healthy, skipping retraining.")
     )
 
-    trigger_notify = TriggerDagRunOperator(
-        task_id="trigger_reload_model_dag",
-        trigger_dag_id="model_deployment",
-    )
-
-
-    check_performance >> [retrain_task >> trigger_notify, skip_task]
+    load_data >> check_performance >> [retrain_task, skip_task]
