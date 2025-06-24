@@ -88,11 +88,7 @@ services:
     volumes:
       - ./sink:/sink
       - ./flink_with_python:/flink_with_python
-    entrypoint:
-      - tail
-    command: 
-      - -f
-      - /dev/null
+    entrypoint: ["/entrypoint.sh"]
     networks:
       - log-monitor-network
 

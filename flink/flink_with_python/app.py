@@ -12,8 +12,7 @@ from pyflink.datastream.functions import MapFunction
 from pyflink.table import StreamTableEnvironment
 from pyflink.table.expressions import col
 
-# TODO: Need to install packages via poetry
-# from logprocessor import LogPreprocessor
+from logprocessor import LogPreprocessor
 
 from config import (
     KAFKA_BROKER,
@@ -168,8 +167,8 @@ def kafka_sink_example():
     register_udfs(t_env)
 
     kafka_source = KafkaSource.builder() \
-        .set_bootstrap_servers(KAFKA_BROKER) \
-        .set_topics(KAFKA_TOPIC) \
+        .set_bootstrap_servers("kafka:9092") \
+        .set_topics("flink-topic") \
         .set_group_id("flink_group") \
         .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
         .set_value_only_deserializer(SimpleStringSchema()) \
@@ -182,8 +181,7 @@ def kafka_sink_example():
 
     parsed_stream = ds.map(ParseJson(), output_type=row_type)
 
-    # TODO: Uncomment to implement LogPreprocessor for ML
-    # parsed_stream.map(LogPreprocessor(), output_type=pca_output_type)
+    parsed_stream.map(LogPreprocessor(), output_type=pca_output_type)
 
     table = t_env.from_data_stream(parsed_stream).alias(
         "ip",

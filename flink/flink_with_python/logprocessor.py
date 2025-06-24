@@ -29,10 +29,11 @@ class LogPreprocessor(MapFunction):
     def _ip_to_country(self, ip):
         try:
             ip = geocoder.ip(ip)
-            if (ip.country == "ID")
+            if (ip.country == "ID"):
                 return 1
-             else
-                return 0   
+            return 0 
+        except:
+            return 0  
 
     def _device_category(self, user_agent):
         if not isinstance(user_agent, str):

@@ -1,5 +1,7 @@
 #!/bin/bash
-set -e  # Exit immediately if a command exits with a non-zero status
+
+echo "Waiting for JobManager..."
+sleep 10
 
 # Step 1: Run initialization
 echo "Running init script..."
@@ -7,4 +9,4 @@ echo "Running init script..."
 
 # Step 2: Submit Flink job
 echo "Submitting Flink job..."
-/flink/bin/flink run -py /taskscripts/app.py --jobmanager jobmanager:8081
+/flink/bin/flink run -py /taskscripts/app.py -m jobmanager:8081

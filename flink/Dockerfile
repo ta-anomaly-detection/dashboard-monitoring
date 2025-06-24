@@ -30,5 +30,6 @@ ADD https://repo.maven.apache.org/maven2/org/apache/flink/flink-metrics-promethe
 COPY flink_with_python/* ./
 
 COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
