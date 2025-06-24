@@ -28,3 +28,7 @@ ADD https://repo.maven.apache.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/cl
 ADD https://repo.maven.apache.org/maven2/org/apache/flink/flink-metrics-prometheus/1.18.1/flink-metrics-prometheus-1.18.1.jar /jars
 
 COPY flink_with_python/* ./
+
+COPY entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
