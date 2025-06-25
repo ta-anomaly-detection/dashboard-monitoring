@@ -8,3 +8,4 @@ numpy
 mlflow
 pysad
 scikit-learn
+clickhouse-connect
