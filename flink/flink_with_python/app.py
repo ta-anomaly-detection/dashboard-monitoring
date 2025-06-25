@@ -167,8 +167,8 @@ def kafka_sink_example():
     register_udfs(t_env)
 
     kafka_source = KafkaSource.builder() \
-        .set_bootstrap_servers("kafka:9092") \
-        .set_topics("flink-topic") \
+        .set_bootstrap_servers(KAFKA_BROKER) \
+        .set_topics(KAFKA_TOPIC) \
         .set_group_id("flink_group") \
         .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
         .set_value_only_deserializer(SimpleStringSchema()) \
