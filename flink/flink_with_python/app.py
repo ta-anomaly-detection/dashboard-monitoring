@@ -1,6 +1,8 @@
 import requests
 import json
 import logging
+import time
+from datetime import datetime
 
 from pyflink.common import WatermarkStrategy, Row
 from pyflink.common.serialization import SimpleStringSchema
@@ -28,15 +30,7 @@ from config import (
 )
 from udfs import (
     register_udfs,
-    encode_method,
-    encode_protocol,
-    encode_status,
-    extract_device,
-    map_device,
     parse_latency,
-    split_request,
-    split_url,
-    encode_country
 )
 
 from utils import clean_ts
@@ -68,6 +62,9 @@ def call_api(row):
 class ParseJson(MapFunction):
     def map(self, value: str) -> Row:
         try:
+            # Record processing start time
+            processing_start_time = datetime.now()
+            
             outer_data = json.loads(value)
 
             if "log" in outer_data:
@@ -86,18 +83,19 @@ class ParseJson(MapFunction):
                 int(data.get("responseCode", 0)),
                 int(data.get("responseByte", 0)),
                 data.get("userAgent"),
+                processing_start_time.isoformat()  # Add processing start time
             )
         except Exception as e:
             logging.error(f"Failed to parse JSON: {e} | Raw message: {value}")
             logging.error(f"Message preview: {value[:200]}...")
-            return Row(*[None] * 16)
+            return Row(*[None] * 11)  # Updated to match new field count
 
 
 row_type = Types.ROW_NAMED(
     field_names=["ip", "time", "method", "responseTime", "url",
-                 "param", "protocol", "responseCode", "responseByte", "userAgent"],
-    field_types=[Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(
-    ), Types.STRING(), Types.STRING(), Types.INT(), Types.INT(), Types.STRING()]
+                 "param", "protocol", "responseCode", "responseByte", "userAgent", "processing_start_time"],
+    field_types=[Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(),
+                 Types.STRING(), Types.STRING(), Types.INT(), Types.INT(), Types.STRING(), Types.STRING()]
 )
 
 pca_output_type = Types.ROW_NAMED(
@@ -153,6 +151,42 @@ class CombineProcessedWithRaw(MapFunction):
             )
 
 
+class AddProcessingTime(MapFunction):
+    def map(self, row):
+        try:
+            # Calculate processing time
+            processing_end_time = datetime.now()
+            processing_start_time_str = row[10]  # processing_start_time is at index 10
+            
+            if processing_start_time_str:
+                processing_start_time = datetime.fromisoformat(processing_start_time_str)
+                processing_duration_ms = (processing_end_time - processing_start_time).total_seconds() * 1000
+            else:
+                processing_duration_ms = 0.0
+            
+            # Return row with processing time data, excluding the processing_start_time field
+            return Row(
+                row[0] or "",                     # ip
+                row[1] or "",                     # time
+                row[2] or "",                     # method
+                float(row[3]) if row[3] is not None else 0.0,  # response_time
+                row[4] or "",                     # url
+                row[5] or "",                     # param
+                row[6] or "",                     # protocol
+                int(row[7]) if row[7] is not None else 0,      # response_code
+                int(row[8]) if row[8] is not None else 0,      # response_byte
+                row[9] or "",                     # user_agent
+                processing_duration_ms            # flink_processing_time_ms
+            )
+        except Exception as e:
+            logging.error(f"Failed to add processing time: {e}")
+            logging.error(f"Row content: {row}")
+            # Return a valid Row with default values
+            return Row(
+                "", "", "", 0.0, "", "", "", 0, 0, "", 0.0
+            )
+
+
 def kafka_sink_example():
     env = StreamExecutionEnvironment.get_execution_environment()
 
@@ -195,7 +229,8 @@ def kafka_sink_example():
         "protocol",
         "responseCode",
         "responseByte",
-        "userAgent"
+        "userAgent",
+        "processing_start_time"
     )
 
     processed_table = table.select(
@@ -209,6 +244,7 @@ def kafka_sink_example():
         col("responseCode"),
         col("responseByte"),
         col("userAgent"),
+        col("processing_start_time")
     )
 
     result_stream = t_env.to_data_stream(processed_table)
@@ -219,25 +255,26 @@ def kafka_sink_example():
     clickhouse_row_type = Types.ROW_NAMED(
         field_names=[
             "ip", "time", "method", "response_time", "url",
-            "param", "protocol", "response_code", "response_byte", "user_agent"
+            "param", "protocol", "response_code", "response_byte", "user_agent", "flink_processing_time_ms"
         ],
         field_types=[
             Types.STRING(), Types.STRING(), Types.STRING(), Types.FLOAT(),
             Types.STRING(), Types.STRING(), Types.STRING(),
-            Types.INT(), Types.INT(), Types.STRING()
+            Types.INT(), Types.INT(), Types.STRING(), Types.FLOAT()
         ]
     )
 
-    # combined_stream = result_stream.map(
-    #     CombineProcessedWithRaw(),
-    #     output_type=clickhouse_row_type
-    # )
+    # Add processing time calculation
+    final_stream = result_stream.map(
+        AddProcessingTime(),
+        output_type=clickhouse_row_type
+    )
 
     sql = f"""
     INSERT INTO {CLICKHOUSE_DB}.{CLICKHOUSE_TABLE} (
         ip, time, method, response_time, url, param, protocol,
-        response_code, response_byte, user_agent
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        response_code, response_byte, user_agent, flink_processing_time_ms
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     connection_options = JdbcConnectionOptions.JdbcConnectionOptionsBuilder()\
@@ -260,9 +297,9 @@ def kafka_sink_example():
         jdbc_connection_options=connection_options
     )
 
-    result_stream.add_sink(jdbc_sink)
+    final_stream.add_sink(jdbc_sink)
 
-    result_stream.print("Data for ClickHouse")
+    final_stream.print("Data for ClickHouse")
 
     env.execute("Kafka to ClickHouse JDBC Job")
 
