@@ -98,59 +98,6 @@ row_type = Types.ROW_NAMED(
                  Types.STRING(), Types.STRING(), Types.INT(), Types.INT(), Types.STRING(), Types.STRING()]
 )
 
-pca_output_type = Types.ROW_NAMED(
-    ["label_1", "label_2", "label_3"],
-    [Types.FLOAT(), Types.FLOAT(), Types.FLOAT()]
-)
-
-
-class CombineProcessedWithRaw(MapFunction):
-    def map(self, row):
-        try:
-            logging.info(f"Processing row: {row}")
-
-            # Now the indices match exactly with the processed_table order
-            return Row(
-                row[0] or "",                     # ts
-                row[1] or "",                     # remote_ip
-                float(row[2]) if row[2] is not None else 0.0,  # latency_us
-                row[3] or "",                     # host
-                row[4] or "",                     # http_method
-                # encoded_http_method
-                int(row[5]) if row[5] is not None else 0,
-                row[6] or "",                     # request_uri
-                row[7][0] if row[7] and len(row[7]) > 0 else "",  # url_path
-                row[7][1] if row[7] and len(row[7]) > 1 else "",  # url_query
-                row[8] or "",                     # http_version
-                # encoded_http_version
-                int(row[9]) if row[9] is not None else 0,
-                # response_status
-                int(row[10]) if row[10] is not None else 0,
-                int(row[11]) if row[11] is not None else 0,    # encoded_status
-                int(row[12]) if row[12] is not None else 0,    # response_size
-                row[13] or "",                    # user_agent
-                row[14] or "",                    # device_family
-                int(row[15]) if row[15] is not None else 0,    # encoded_device
-                row[16] or "",                    # country
-                # encoded_country
-                int(row[17]) if row[17] is not None else 0,
-                row[18] or "",                    # referrer
-                row[19] or "",                    # request_id
-                row[20] or "",                    # msg
-                row[21] or ""                     # level
-            )
-        except Exception as e:
-            logging.error(f"Failed to combine data: {e}")
-            logging.error(f"Row content: {row}")
-            logging.error(
-                f"Row length: {len(row) if hasattr(row, '__len__') else 'N/A'}")
-            # Return a valid Row with default values
-            return Row(
-                "", "", 0.0, "", "", 0, "", "", "", "",
-                0, 0, 0, 0, "", "", 0, "", 0, "", "", "", ""
-            )
-
-
 class AddProcessingTime(MapFunction):
     def map(self, row):
         try:
@@ -193,7 +140,6 @@ def kafka_sink_example():
     env.add_jars("file:///jars/flink-sql-connector-kafka-3.0.1-1.18.jar")
     env.add_jars("file:///jars/flink-connector-jdbc-3.1.2-1.17.jar")
     env.add_jars("file:///jars/clickhouse-jdbc-0.4.6-all.jar")
-    # env.add_jars("file:///jars/flink-metrics-prometheus-1.18.1.jar")
 
     print_configuration()
 
@@ -215,9 +161,6 @@ def kafka_sink_example():
         kafka_source, WatermarkStrategy.no_watermarks(), "Kafka Source")
 
     parsed_stream = ds.map(ParseJson(), output_type=row_type)
-
-    # TODO: Uncomment to implement LogPreprocessor for ML
-    # parsed_stream.map(LogPreprocessor(), output_type=pca_output_type)
 
     table = t_env.from_data_stream(parsed_stream).alias(
         "ip",
@@ -264,7 +207,6 @@ def kafka_sink_example():
         ]
     )
 
-    # Add processing time calculation
     final_stream = result_stream.map(
         AddProcessingTime(),
         output_type=clickhouse_row_type
