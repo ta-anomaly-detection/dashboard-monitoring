@@ -5,10 +5,10 @@ START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 echo "Start time: $START_TIME"
 
 # Run `hey` POST request
-hey -n 2000 -c 5 \
+hey -n 10000 -c 20 \
   -m POST \
   -T "application/json" \
-  -H "Authorization: b3c92759-c689-4942-ab3b-cd6e318144ff" \
+  -H "Authorization: 79da3777-e8d9-49af-9089-dc4358d8d2c2" \
   -d '{"first_name":"John","last_name":"Doe","email":"john@example.com","phone":"08123456789"}' \
   http://localhost:3000/api/contacts
 

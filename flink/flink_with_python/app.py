@@ -40,25 +40,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
 )
 
-
-def call_api(row):
-    try:
-        response = requests.post(
-            "http://web:8000/api/prediction/predict",  # real URL
-            json={
-                "size": row[0],
-                "country": row[1],
-                "method": row[2],
-                "device": row[3],
-                "status": row[4]
-            },
-            timeout=5
-        )
-        return f"✅ {response.status_code}: {response.text}"
-    except Exception as e:
-        return f"❌ Error: {str(e)}"
-
-
 class ParseJson(MapFunction):
     def map(self, value: str) -> Row:
         try:
